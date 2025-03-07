@@ -9,3 +9,4 @@ urlpatterns = [
     path("get_stock_updates/", views.get_stock_updates, name="get_stock_updates")
 
 ]
+
