@@ -84,7 +84,7 @@ import asyncio
 from mainapp.models import StockDetail
 
 # Path to CSV file
-CSV_FILE_PATH = "C:/projects/stocktracker/stockproject/mainapp/generated_stock_data.csv"
+CSV_FILE_PATH = "C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
 df = pd.read_csv(CSV_FILE_PATH)
 
 # Dictionary to track current index for each stock in the CSV
@@ -101,13 +101,13 @@ def fetch_stock_data_from_csv(selected_stocks):
             index = 0
         row = stock_data.iloc[index]
         data[ticker] = {
-            "current_price": float(row["current_price"]),
-            "previous_close": float(row["previous_close"]),
+            "current_price": float(row["close"]),
+            
             "volume": int(row["volume"]),
-            "market_cap": float(row["market_cap"]),
-            "open_price": float(row["open_price"]),
-            "day_high": float(row["day_high"]),
-            "day_low": float(row["day_low"]),
+            
+            "open_price": float(row["open"]),
+            "day_high": float(row["high"]),
+            "day_low": float(row["low"]),
         }
         stock_indices[ticker] = index + 1
     return data

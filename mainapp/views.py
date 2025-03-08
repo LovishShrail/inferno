@@ -7,7 +7,7 @@ from .tasks import update_stock
 from asgiref.sync import sync_to_async
 
 # Path to CSV file
-CSV_FILE_PATH = "C:/projects/stocktracker/stockproject/mainapp/generated_stock_data.csv"
+CSV_FILE_PATH = "C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
 
 # Load CSV into a DataFrame
 df = pd.read_csv(CSV_FILE_PATH)
@@ -31,13 +31,13 @@ def get_stock_updates(selected_stocks):
         row = stock_data.iloc[index]
 
         data[ticker] = {
-            "current_price": row["current_price"],
-            "previous_close": row["previous_close"],
+            "current_price": row["close"],
+            
             "volume": row["volume"],
-            "market_cap": row["market_cap"],
-            "open_price": row["open_price"],
-            "day_high": row["day_high"],
-            "day_low": row["day_low"],
+            
+            "open_price": row["open"],
+            "day_high": row["high"],
+            "day_low": row["low"],
         }
 
         # Move to the next index for the next call
