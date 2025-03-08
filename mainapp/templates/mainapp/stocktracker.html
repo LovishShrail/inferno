@@ -19,12 +19,9 @@
           <th>SNo.</th>
           <th>Stock</th>
           <th>Price</th>
-          {% comment %} <th>Previous Close</th> {% endcomment %}
           <th>Open</th>
-          <th>high</th>
-          <th>low</th>
-          {% comment %} <th>Change</th> {% endcomment %}
-          {% comment %} <th>Market Cap</th> {% endcomment %}
+          <th>High</th>
+          <th>Low</th>
           <th>Volume</th>
         </tr>
       </thead>
@@ -33,15 +30,10 @@
         <tr id="row-{{ ticker }}">
           <td>{{ forloop.counter }}</td>
           <td>{{ ticker }}</td>
-          <td id="{{ ticker }}_price">{{ details.current_price }}</td>
-          {% comment %} <td id="{{ ticker }}_prevprice">{{ details.previous_close }}</td> {% endcomment %}
-          <td id="{{ ticker }}_open">{{ details.open_price }}</td>
-          <td id="{{ ticker }}_high">{{ details.day_high }}</td>
-          <td id="{{ ticker }}_low">{{ details.day_low }}</td>
-
-
-          {% comment %} <td id="{{ ticker }}_change"></td> {% endcomment %}
-          {% comment %} <td id="{{ ticker }}_cap">{{ details.market_cap }}</td> {% endcomment %}
+          <td id="{{ ticker }}_price">{{ details.close }}</td>
+          <td id="{{ ticker }}_open">{{ details.open }}</td>
+          <td id="{{ ticker }}_high">{{ details.high }}</td>
+          <td id="{{ ticker }}_low">{{ details.low }}</td>
           <td id="{{ ticker }}_vol">{{ details.volume }}</td>
         </tr>
         {% endfor %}
@@ -49,56 +41,258 @@
     </table>
   </div>
 </div>
-
 {% endblock %}
 
-{%block js%}
+{% block js %}
+{{ room_name|json_script:"room-name" }}
+<script>
+  const roomName = JSON.parse(document.getElementById('room-name').textContent);
+  const queryString = window.location.search.substring(1);
+  console.log("Query String:", queryString);
+
+  // Build WebSocket URL
+  const wsUrl = 
+    'ws://' +
+    window.location.host +
+    '/ws/stock/' +
+    roomName +
+    '/?' +
+    queryString;
+
+  console.log("WebSocket URL:", wsUrl);
+
+  // Initialize WebSocket connection
+  const stockSocket = new WebSocket(wsUrl);
+
+  stockSocket.onmessage = function(event) {
+    const data = JSON.parse(event.data); // Parse JSON data
+    console.log("Received Data:", data);
+
+    for (const [ticker, values] of Object.entries(data)) {
+      document.getElementById(`${ticker}_price`).innerText = values.close;
+      document.getElementById(`${ticker}_open`).innerText = values.open;
+      document.getElementById(`${ticker}_high`).innerText = values.high;
+      document.getElementById(`${ticker}_low`).innerText = values.low;
+      document.getElementById(`${ticker}_vol`).innerText = values.volume;
+    }
+  };
+
+  stockSocket.onopen = function(event) {
+    console.log("WebSocket connection opened:", event);
+  };
+
+  stockSocket.onerror = function(error) {
+    console.error("WebSocket Error:", error);
+  };
+</script>
+{% endblock %}
 
 
 
-    {{room_name|json_script:"room-name"}}
-    <script>
-      const roomName = JSON.parse(document.getElementById('room-name').textContent);
-      var queryString = window.location.search;
-      queryString = queryString.substring(1);
-      console.log("Query String:", queryString);
-    
-      // Build WebSocket URL
-      const wsUrl = 
-        'ws://' +
-        window.location.host +
-        '/ws/stock/' +
-        roomName +
-        '/?' +  // Combine "/" and "?" into one string
-        queryString;
-    
-      console.log("WebSocket URL:", wsUrl);
-    
-      // Initialize WebSocket connection
-      const stockSocket = new WebSocket(wsUrl);
 
-      stockSocket.onmessage = function(event) {
-        console.log(event.data);
-        const data = JSON.parse(event.data); // Parse JSON data 
-        console.log(data);
-      
-        for (const [key, value] of Object.entries(data)) {
-          document.getElementById(key + '_price').innerText = value['current_price'];
-          document.getElementById(key + '_open').innerText = value['open_price'];
-          document.getElementById(key + '_vol').innerText = value['volume'];
-          document.getElementById(key + '_high').innerText = value['day_high'];
-          document.getElementById(key + '_low').innerText = value['day_low'];
-      
-          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{% comment %} {% extends 'mainapp/index.html' %}
+{% load static %}
+
+{% block title %} StockTracker {% endblock %}
+
+{% block css %}
+<style>
+  .red { color: red; }
+  .green { color: green; }
+  #chart {
+    width: 100%;
+    height: 400px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1>Live Stock Tracker</h1>
+
+  <!-- Chart Container -->
+  <div id="chart"></div>
+
+  <!-- Stock Data Table -->
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>SNo.</th>
+          <th>Stock</th>
+          <th>Price</th>
+          <th>Open</th>
+          <th>High</th>
+          <th>Low</th>
+          <th>Volume</th>
+        </tr>
+      </thead>
+      <tbody id="stock-data">
+        {% for ticker, details in data.items %}
+        <tr id="row-{{ ticker }}">
+          <td>{{ forloop.counter }}</td>
+          <td>{{ ticker }}</td>
+          <td id="{{ ticker }}_price">{{ details.close }}</td>
+          <td id="{{ ticker }}_open">{{ details.open }}</td>
+          <td id="{{ ticker }}_high">{{ details.high }}</td>
+          <td id="{{ ticker }}_low">{{ details.low }}</td>
+          <td id="{{ ticker }}_vol">{{ details.volume }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<!-- ✅ Use a Different CDN URL -->
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+{{ room_name|json_script:"room-name" }}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const roomName = JSON.parse(document.getElementById('room-name').textContent);
+    const queryString = window.location.search.substring(1);
+    console.log("Query String:", queryString);
+
+    // ✅ Build WebSocket URL
+    const wsUrl =
+      'ws://' +
+      window.location.host +
+      '/ws/stock/' +
+      roomName +
+      '/?' +
+      queryString;
+
+    console.log("WebSocket URL:", wsUrl);
+
+    // ✅ Initialize WebSocket connection
+    const stockSocket = new WebSocket(wsUrl);
+
+    // ✅ Chart Initialization
+    const chartContainer = document.getElementById('chart');
+    let chart;
+    let candlestickSeries;
+
+    function initializeChart() {
+      if (!chartContainer) {
+        console.error("Chart container not found!");
+        return;
+      }
+
+      // ✅ Debug: Check if LightweightCharts is loaded
+      console.log("LightweightCharts:", LightweightCharts);
+
+      if (typeof LightweightCharts === "undefined") {
+        console.error("LightweightCharts library is not loaded!");
+        return;
+      }
+
+      console.log("Initializing chart...");
+
+      chart = LightweightCharts.createChart(chartContainer, {
+        width: chartContainer.clientWidth,
+        height: 400,
+        layout: { backgroundColor: '#ffffff', textColor: '#000' },
+        grid: { vertLines: { color: '#e0e0e0' }, horzLines: { color: '#e0e0e0' } },
+        priceScale: { borderColor: '#cccccc' },
+        timeScale: { borderColor: '#cccccc' },
+      });
+
+      if (chart) {
+        candlestickSeries = chart.addCandlestickSeries();
+        console.log("Chart initialized successfully.");
+      } else {
+        console.error("Chart could not be initialized.");
+      }
+    }
+
+    initializeChart();
+
+    // ✅ Ensure Chart Resizes Correctly
+    window.addEventListener("resize", () => {
+      if (chart) {
+        chart.resize(chartContainer.clientWidth, 400);
+      }
+    });
+
+    // ✅ Function to Update Chart
+    function updateChart(data) {
+      if (!candlestickSeries) {
+        console.error("Candlestick series not initialized.");
+        return;
+      }
+
+      const formattedData = Object.values(data).map(stock => ({
+        time: stock.time,
+        open: stock.open,
+        high: stock.high,
+        low: stock.low,
+        close: stock.close,
+      }));
+
+      if (formattedData.length > 0) {
+        candlestickSeries.setData(formattedData);
+      }
+    }
+
+    // ✅ WebSocket Events
+    stockSocket.onmessage = function (event) {
+      try {
+        const data = JSON.parse(event.data); // Parse JSON data
+        console.log("Received Data:", data);
+
+        // ✅ Update the Table
+        for (const [ticker, values] of Object.entries(data)) {
+          document.getElementById(`${ticker}_price`).innerText = values.close;
+          document.getElementById(`${ticker}_open`).innerText = values.open;
+          document.getElementById(`${ticker}_high`).innerText = values.high;
+          document.getElementById(`${ticker}_low`).innerText = values.low;
+          document.getElementById(`${ticker}_vol`).innerText = values.volume;
         }
-      };
-      
-      stockSocket.onopen = function(event) {
-        console.log("WebSocket connection opened:", event);
-      };
-    
-      stockSocket.onerror = function(error) {
-        console.error("WebSocket Error:", error);
-      };
-    </script>
-{%endblock%}
+
+        // ✅ Update the Chart
+        updateChart(data);
+      } catch (error) {
+        console.error("Error processing WebSocket data:", error);
+      }
+    };
+
+    stockSocket.onopen = function (event) {
+      console.log("WebSocket connection opened:", event);
+    };
+
+    stockSocket.onerror = function (error) {
+      console.error("WebSocket Error:", error);
+    };
+  });
+</script>
+{% endblock %}
+ {% endcomment %}
+

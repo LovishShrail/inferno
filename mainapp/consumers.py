@@ -1,11 +1,14 @@
 import json
-from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
-import copy
+import redis
+from urllib.parse import parse_qs
 
+# Connect to Redis
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 class StockConsumer(AsyncWebsocketConsumer):
+    """Manages stock selection and periodic updates using Celery Beat."""
 
     @sync_to_async
     def add_to_celery_beat(self, stockpicker):
@@ -30,7 +33,6 @@ class StockConsumer(AsyncWebsocketConsumer):
 
         print("Final Celery Task Args:", json.loads(task.args))  # Debugging
 
-
     @sync_to_async
     def add_to_stock_detail(self, stockpicker):
         """Adds selected stocks to the StockDetail model for the user."""
@@ -48,7 +50,6 @@ class StockConsumer(AsyncWebsocketConsumer):
 
         print(f"Updated StockDetail for {user}: {stockpicker}")  # Debugging
 
-
     async def connect(self):
         """Handles new WebSocket connections."""
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
@@ -64,21 +65,15 @@ class StockConsumer(AsyncWebsocketConsumer):
         stockpicker = query_params.get('stock_picker', [])
 
         # Ensure stockpicker is a list
-        # Extract multiple stock values correctly
-        stockpicker = query_params.get('stock_picker', [])
-
-        # `parse_qs` returns a list for each key, so we flatten it
         stockpicker = [item for sublist in stockpicker for item in sublist.split(",")]
 
         print("Final Selected Stocks:", stockpicker)  # Debugging
-
 
         # Add stocks to Celery Beat and database
         await self.add_to_celery_beat(stockpicker)
         await self.add_to_stock_detail(stockpicker)
 
         await self.accept()
-
 
     @sync_to_async
     def remove_user_stocks(self):
@@ -109,12 +104,10 @@ class StockConsumer(AsyncWebsocketConsumer):
 
         print(f"Removed stocks for user {user}")
 
-
     async def disconnect(self, close_code):
         """Handles WebSocket disconnection."""
         await self.remove_user_stocks()
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
-
 
     async def receive(self, text_data):
         """Handles messages from WebSocket clients."""
@@ -126,21 +119,24 @@ class StockConsumer(AsyncWebsocketConsumer):
             self.room_group_name, {"type": "stock_update", "message": message}
         )
 
-
     @sync_to_async
     def select_user_stocks(self):
         """Fetches the stocks selected by the user from the database."""
         user = self.scope["user"]
         return list(user.stockdetail_set.values_list("stock", flat=True))
 
-
     async def send_stock_update(self, event):
         """Sends stock updates to clients, filtered by the user's selected stocks."""
-        message = copy.copy(event["message"])
+        message = event["message"]
         user_stocks = await self.select_user_stocks()
 
-        # Filter message to only include user's selected stocks
-        filtered_message = {stock: data for stock, data in message.items() if stock in user_stocks}
+        # Fetch data from Redis for the user's selected stocks
+        filtered_message = {}
+        for stock in user_stocks:
+            redis_key = f"candlestick_data:{stock}"
+            data = redis_client.get(redis_key)
+            if data:
+                filtered_message[stock] = json.loads(data)[-1]  # Send only the latest data
 
-        # Send filtered data
+        # Send filtered data to frontend
         await self.send(text_data=json.dumps(filtered_message))

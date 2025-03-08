@@ -1,61 +1,75 @@
 import pandas as pd
+import json
+import redis
 from lightweight_charts import Chart
 import tkinter as tk
 from tkinter import ttk
+import threading
+import time
 
-# Define CSV file path
-CSV_FILE = r"C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
+# Connect to Redis
+redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
-def load_stock_data(selected_stock):
-    """Load stock data for the selected stock symbol and compute SMA."""
-    df = pd.read_csv(CSV_FILE, parse_dates=["date"])
+def fetch_stock_data_from_redis(selected_stock):
+    """Fetch standardized data from Redis for the chart."""
+    redis_key = f"candlestick_data:{selected_stock}"
+    data = redis_conn.get(redis_key)
 
-    # Filter data for the selected stock symbol
-    df = df[df["ticker"] == selected_stock]
-
-    if df.empty:
+    if not data:
         raise ValueError(f"No data found for stock: {selected_stock}")
 
-    # Compute 20-day Simple Moving Average (SMA)
-    df["sma_20"] = df["close"].rolling(window=20).mean()
+    # Convert JSON data to DataFrame
+    df = pd.DataFrame(json.loads(data))
 
-    # Rename columns for Lightweight Charts compatibility
-    df.rename(columns={"date": "time"}, inplace=True)
+    # Ensure correct column names and data types
+    df["time"] = pd.to_datetime(df["time"])
+    df[["open", "high", "low", "close"]] = df[["open", "high", "low", "close"]].astype(float)
 
-    # Prepare SMA data for the chart (Rename "value" to "SMA 20")
-    sma = df[["time", "sma_20"]].rename(columns={"sma_20": "SMA 20"}).dropna()
+    print("[DEBUG] Cleaned Data for Chart:")
+    print(df.head())
 
-    return df, sma
+    return df
 
 def update_chart(selected_stock):
-    """Update chart based on selected stock symbol."""
+    """Fetch data from Redis and update the chart."""
     try:
-        df, sma = load_stock_data(selected_stock)
+        df = fetch_stock_data_from_redis(selected_stock)
 
-        # Clear previous data and update chart
+        if df.empty:
+            print(f"[WARNING] No valid data for {selected_stock}, chart will not update.")
+            return
+
+        print("\n[DEBUG] Updating Chart with Data:\n", df.tail())  # Print last few rows
+
+        # Clear and update chart
         chart.set(df[["time", "open", "high", "low", "close", "volume"]])
 
-        # Update SMA line with correctly named column
-        line.set(sma)
-
     except ValueError as e:
-        print(e)
+        print("[ERROR]", e)
 
-def on_stock_select(event):
+def on_stock_select(event=None):
     """Handles stock selection from dropdown."""
     selected_stock = stock_dropdown.get()
     update_chart(selected_stock)
 
+def auto_refresh():
+    """Automatically refresh chart every 10 seconds."""
+    while True:
+        time.sleep(10)
+        on_stock_select()
+
 if __name__ == "__main__":
-    # Load all stock symbols from the CSV
-    df_all = pd.read_csv(CSV_FILE)
-    stock_symbols = df_all["ticker"].unique().tolist()
+    # Fetch available stocks from Redis
+    stock_keys = redis_conn.keys("candlestick_data:*")
+    stock_symbols = [key.split(":")[-1] for key in stock_keys]
 
-    # Initialize the chart
+    if not stock_symbols:
+        raise ValueError("No stock data found in Redis!")
+
+    # Initialize chart
     chart = Chart()
-    line = chart.create_line(name="SMA 20")  # Now the name matches the SMA column
 
-    # Initialize Tkinter GUI for dropdown selection
+    # Initialize Tkinter UI
     root = tk.Tk()
     root.title("Stock Selector")
 
@@ -63,57 +77,19 @@ if __name__ == "__main__":
 
     stock_dropdown = ttk.Combobox(root, values=stock_symbols, state="readonly")
     stock_dropdown.pack(pady=5)
-    stock_dropdown.set(stock_symbols[0])  # Default selection
+    stock_dropdown.set(stock_symbols[0])
 
-    # Bind selection event
+    # Bind dropdown event
     stock_dropdown.bind("<<ComboboxSelected>>", on_stock_select)
 
-    # Start with the first stock
+    # Start with first stock
     update_chart(stock_symbols[0])
 
-    # Show the chart in a non-blocking way
+    # Start auto-refresh in background thread
+    threading.Thread(target=auto_refresh, daemon=True).start()
+
+    # Show chart (non-blocking)
     chart.show(block=False)
 
-    # Run the dropdown UI
+    # Run UI
     root.mainloop()
-
-
-
-
-
-
-# import pandas as pd
-# import pandas_ta as ta
-# import yfinance as yf
-# from lightweight_charts import Chart
-
-# if __name__ == '__main__':
-    
-#     chart = Chart()
-#     symbol ="AMD"
-#     msft = yf.Ticker(symbol)
-#     df = msft.history(period="1y")
-
-#     # prepare indicator values
-#     sma = df.ta.sma(length=20).to_frame()
-    
-#     sma = sma.reset_index()
-#     sma = sma.rename(columns={"Date": "time", "SMA_20": "value"})
-#     sma = sma.dropna()
-    
-#     # this library expects lowercase columns for date, open, high, low, close, volume
-#     df = df.reset_index()
-#     df.columns = df.columns.str.lower()
-#     chart.set(df)
- 
-#     # add sma line
-#     line = chart.create_line()    
-#     line.set(sma)
-
-#     chart.watermark(symbol)
-    
-#     chart.show(block=True)
-    
-    
-    
-    
