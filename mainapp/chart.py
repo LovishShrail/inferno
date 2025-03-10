@@ -18,17 +18,16 @@ def fetch_stock_data_from_redis(selected_stock):
     if not data:
         raise ValueError(f"No data found for stock: {selected_stock}")
 
-    # Convert JSON data to DataFrame
     df = pd.DataFrame(json.loads(data))
 
-    # Ensure correct column names and data types
-    df["time"] = pd.to_datetime(df["time"])
-    df[["open", "high", "low", "close"]] = df[["open", "high", "low", "close"]].astype(float)
+    df["time"] = pd.to_datetime(df["time"])  # Ensure correct datetime format
+    df["time"] = df["time"].astype(int) // 10**9  # Convert to UNIX timestamp
+    df = df.sort_values("time")  # Ensure data is in order
 
-    print("[DEBUG] Cleaned Data for Chart:")
-    print(df.head())
+    print("\n[DEBUG] Sending Data to Chart:\n", df.to_dict(orient="records"))
 
     return df
+
 
 def update_chart(selected_stock):
     """Fetch data from Redis and update the chart."""

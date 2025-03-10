@@ -19,7 +19,8 @@ StockPicker
     <h1>live stock tracker </h1>
     <p>select your favourite stocks</p>
 
-    <form action="/stocktracker">
+    <form action="/stocktracker"> 
+
         <label for ="stock_picker"> select Stocks </label>
         <select class="form-select form-select-lg mb-3" multiple aria-label="multiple select example" name="stock_picker">
         {% for i in stock_picker %}

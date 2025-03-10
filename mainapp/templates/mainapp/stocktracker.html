@@ -44,7 +44,7 @@
 {% endblock %}
 
 {% block js %}
-{{ room_name|json_script:"room-name" }}
+{{ room_name|json_script:"room-name" }} 
 <script>
   const roomName = JSON.parse(document.getElementById('room-name').textContent);
   const queryString = window.location.search.substring(1);
@@ -65,7 +65,7 @@
   const stockSocket = new WebSocket(wsUrl);
 
   stockSocket.onmessage = function(event) {
-    const data = JSON.parse(event.data); // Parse JSON data
+    const data = JSON.parse(event.data); // Parse JSON data bcoz it is in string format and we need to convert it into json
     console.log("Received Data:", data);
 
     for (const [ticker, values] of Object.entries(data)) {

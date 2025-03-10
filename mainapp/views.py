@@ -21,7 +21,7 @@ def get_stock_updates(selected_stocks):
     data = {}
 
     for ticker in selected_stocks:
-        stock_data = df[df["ticker"] == ticker]
+        stock_data = df[df["ticker"] == ticker] 
         index = stock_indices.get(ticker, 0)
 
         # If we reach the end of the dataset, loop back to the beginning
@@ -74,12 +74,12 @@ async def stockTracker(request):
 
 redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
-def get_stock_data(request, ticker):
-    """Fetch stock data from Redis and return as JSON."""
-    redis_key = f"candlestick_data:{ticker}"
-    data = redis_conn.get(redis_key)
+# def get_stock_data(request, ticker):
+#     """Fetch stock data from Redis and return as JSON."""
+#     redis_key = f"candlestick_data:{ticker}"
+#     data = redis_conn.get(redis_key)
 
-    if not data:
-        return JsonResponse({"error": "No data found"}, status=404)
+#     if not data:
+#         return JsonResponse({"error": "No data found"}, status=404)
 
-    return JsonResponse(json.loads(data), safe=False)
+#     return JsonResponse(json.loads(data), safe=False)
