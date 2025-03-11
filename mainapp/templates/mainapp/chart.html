@@ -1,0 +1,108 @@
+{% extends 'mainapp/index.html' %}
+{% load static %}
+{% block title %} Stock Chart {% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1>Stock Chart</h1>
+
+  <!-- Stock Selection Dropdown -->
+  <label for="stockSelector">Select Stock:</label>
+  <select id="stockSelector">
+    {% for ticker in data.keys %}
+      <option value="{{ ticker }}">{{ ticker }}</option>
+    {% endfor %}
+  </select>
+
+  <!-- Chart Container -->
+  <div class="chart-container">
+    <div id="chart" style="width: 100%; height: 500px;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+{{ room_name|json_script:"room-name" }}
+
+<!-- Load Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<script>
+    const roomName = JSON.parse(document.getElementById('room-name').textContent);
+    const queryString = window.location.search.substring(1);
+
+    // ✅ WebSocket URL (same as stocktracker.html)
+    const wsUrl = `ws://${window.location.host}/ws/stock/${roomName}/?${queryString}`;
+    console.log("WebSocket URL:", wsUrl);
+
+    const stockSocket = new WebSocket(wsUrl);
+
+    // ✅ Ensure chart is initialized properly
+    const chartElement = document.getElementById("chart");
+    const chart = LightweightCharts.createChart(chartElement, {
+        width: chartElement.clientWidth,
+        height: 500,
+        layout: { backgroundColor: "#ffffff", textColor: "#000" },
+        grid: { vertLines: { color: "#e1ecf2" }, horzLines: { color: "#e1ecf2" } }
+    });
+
+    const candleSeries = chart.addCandlestickSeries();
+    
+
+    // ✅ Convert received stock data into the required format
+    function processStockData(data) {
+        console.log("🔹 Processing Stock Data:", data); // Debug log
+        return {
+            time: Math.floor(new Date(data.timestamp).getTime() / 1000),
+            open: data.open,
+            high: data.high,
+            low: data.low,
+            close: data.close
+        };
+    }
+
+    // ✅ Handle incoming WebSocket messages
+    stockSocket.onmessage = function(event) {
+        console.log("🔵 WebSocket Message Received:", event.data);  // Debugging
+        const data = JSON.parse(event.data);
+    
+        if (!data || Object.keys(data).length === 0) {
+            console.error("Received empty or invalid data.");
+            return;
+        }
+    
+        console.log("📊 Parsed Data:", data);
+        
+        const selectedStock = document.getElementById("stockSelector").value;
+        if (data[selectedStock]) {
+            console.log(`Updating Chart for: ${selectedStock}`, data[selectedStock]);
+            const newCandle = {
+                time: Math.floor(new Date(data[selectedStock].timestamp).getTime() / 1000),
+                open: data[selectedStock].open,
+                high: data[selectedStock].high,
+                low: data[selectedStock].low,
+                close: data[selectedStock].close
+            };
+            candleSeries.update(newCandle);
+        } else {
+            console.warn(`No data for selected stock: ${selectedStock}`);
+        }
+    };
+    
+    
+
+    stockSocket.onopen = function(event) {
+        console.log("WebSocket connection opened:", event);
+    };
+
+    stockSocket.onerror = function(error) {
+        console.error("WebSocket Error:", error);
+    };
+
+    // ✅ Clear chart when stock is changed
+    document.getElementById("stockSelector").addEventListener("change", function() {
+        console.log("Stock changed, clearing chart.");
+        candleSeries.setData([]);
+    });
+</script>
+{% endblock %}

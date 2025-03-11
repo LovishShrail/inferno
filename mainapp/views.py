@@ -74,12 +74,22 @@ async def stockTracker(request):
 
 redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
-# def get_stock_data(request, ticker):
-#     """Fetch stock data from Redis and return as JSON."""
-#     redis_key = f"candlestick_data:{ticker}"
-#     data = redis_conn.get(redis_key)
+def stock_chart_data(request, stock_symbol):
+    """Fetch stock data from Redis and return it in JSON format."""
+    redis_key = f"candlestick_data:{stock_symbol}"
+    data = redis_conn.get(redis_key)
 
-#     if not data:
-#         return JsonResponse({"error": "No data found"}, status=404)
+    if not data:
+        return JsonResponse({"error": "No data found"}, status=404)
 
-#     return JsonResponse(json.loads(data), safe=False)
+    df = pd.DataFrame(json.loads(data))
+    df["time"] = pd.to_datetime(df["time"]).astype(int) // 10**9
+
+    chart_data = df[["time", "open", "high", "low", "close"]].to_dict(orient="records")
+    return JsonResponse(chart_data, safe=False)
+
+
+
+def chart_view(request):
+    room_name = "track"  # Assign a default room name if needed
+    return render(request, "mainapp/chart.html", {"room_name": room_name})
