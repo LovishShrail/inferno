@@ -10,37 +10,37 @@ from tkinter import ttk
 # Connect to Redis
 redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
-# WebSocket URL for frontend updates
-WS_URL = "ws://localhost:8000/ws/stocktracker/"
+# WebSocket URL template
+WS_URL_TEMPLATE = "ws://localhost:8000/ws/stock/{room_name}/"
 
-async def send_to_websocket(data):
-    """Send stock data updates to WebSocket for real-time frontend updates."""
-    async with websockets.connect(WS_URL) as websocket:
+async def send_to_websocket(data, selected_stock):
+    """Send stock data updates to WebSocket."""
+    ws_url = WS_URL_TEMPLATE.format(room_name=selected_stock)
+    async with websockets.connect(ws_url) as websocket:
         await websocket.send(json.dumps({"action": "update_chart", "data": data}))
-        print("[DEBUG] Sent data to WebSocket")
+        print(f"[DEBUG] Sent data for {selected_stock} to WebSocket")
 
 def fetch_stock_data_from_redis(selected_stock):
-    """Fetch latest stock data from Redis and return as DataFrame."""
+    """Fetch latest stock data from Redis."""
     redis_key = f"candlestick_data:{selected_stock}"
     data = redis_conn.get(redis_key)
 
     if not data:
         print(f"[WARNING] No data found for stock: {selected_stock}")
-        return pd.DataFrame()  # Return empty DataFrame
+        return pd.DataFrame()  # Empty DataFrame
 
     df = pd.DataFrame(json.loads(data))
 
-    # Detect if time is in string format ("YYYY-MM-DD") or UNIX timestamp
+    # Convert timestamps if necessary
     if isinstance(df["time"].iloc[0], str):
-        df["time"] = pd.to_datetime(df["time"])  # Convert from YYYY-MM-DD
+        df["time"] = pd.to_datetime(df["time"])
     else:
-        df["time"] = pd.to_datetime(df["time"], unit="s")  # Convert from UNIX timestamp
+        df["time"] = pd.to_datetime(df["time"], unit="s")
 
-    df = df.sort_values("time")  # Ensure data is in order
+    df = df.sort_values("time")
 
-    print("\n[DEBUG] Sending Data to Chart:\n", df.to_dict(orient="records"))
+    print(f"\n[DEBUG] {selected_stock} Data for Chart:\n", df.tail())
     return df
-
 
 def update_chart(selected_stock):
     """Fetch data from Redis and update the chart."""
@@ -51,13 +51,11 @@ def update_chart(selected_stock):
             print(f"[WARNING] No valid data for {selected_stock}, chart will not update.")
             return
 
-        print("\n[DEBUG] Updating Chart with Data:\n", df.tail())  
-
-        # Clear and update chart
+        # Update chart
         chart.set(df[["time", "open", "high", "low", "close", "volume"]])
 
-        # Send data to WebSocket
-        asyncio.run(send_to_websocket(df.to_dict(orient="records")))
+        # Send data to WebSocket (Non-blocking)
+        asyncio.create_task(send_to_websocket(df.to_dict(orient="records"), selected_stock))
 
     except Exception as e:
         print("[ERROR] Failed to update chart:", e)
@@ -78,7 +76,8 @@ if __name__ == "__main__":
     stock_symbols = [key.split(":")[-1] for key in stock_keys]
 
     if not stock_symbols:
-        raise ValueError("No stock data found in Redis!")
+        print("[ERROR] No stock data found in Redis! Using default stocks.")
+        stock_symbols = ["AAPL", "GOOGL"]  # Default stocks if Redis is empty
 
     # Initialize chart
     chart = Chart()
@@ -107,8 +106,3 @@ if __name__ == "__main__":
 
     # Run UI
     root.mainloop()
-
-
-
-
-
