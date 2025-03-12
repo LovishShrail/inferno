@@ -1,10 +1,15 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 import pandas as pd
 from .tasks import update_stock
 from asgiref.sync import sync_to_async
 import redis
 import json
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum  # Import Sum for aggregation
+from .models import UserProfile, Order  # Import your models
+
+
 
 # Path to CSV file
 CSV_FILE_PATH = r"C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
@@ -91,5 +96,70 @@ def stock_chart_data(request, stock_symbol):
 
 
 def chart_view(request):
-    room_name = "track"  # Assign a default room name if needed
-    return render(request, "mainapp/chart.html", {"room_name": room_name})
+    stocks = Stock.objects.all()  # Fetch all stocks from the database
+    return render(request, 'chart.html', {'stocks': stocks})
+
+
+
+
+@login_required
+def buy_stock(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        stock = data.get('stock')
+        quantity = int(data.get('quantity'))
+        price = float(data.get('price'))
+
+        user_profile = get_object_or_404(UserProfile, user=request.user)
+        total_cost = quantity * price
+
+        if user_profile.balance >= total_cost:
+            # Deduct balance and create order
+            user_profile.balance -= total_cost
+            user_profile.save()
+
+            Order.objects.create(
+                user=request.user,
+                stock=stock,
+                order_type='BUY',
+                quantity=quantity,
+                price=price,
+            )
+            return JsonResponse({"status": "success", "message": "Order placed successfully."})
+        else:
+            return JsonResponse({"status": "error", "message": "Insufficient balance."}, status=400)
+
+    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+
+@login_required
+def sell_stock(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        stock = data.get('stock')
+        quantity = int(data.get('quantity'))
+        price = float(data.get('price'))
+
+        user_profile = get_object_or_404(UserProfile, user=request.user)
+
+        # Check if the user has enough stocks to sell
+        total_owned = Order.objects.filter(user=request.user, stock=stock, order_type='BUY').aggregate(total=models.Sum('quantity'))['total'] or 0
+        total_sold = Order.objects.filter(user=request.user, stock=stock, order_type='SELL').aggregate(total=models.Sum('quantity'))['total'] or 0
+        available_quantity = total_owned - total_sold
+
+        if available_quantity >= quantity:
+            # Add balance and create order
+            user_profile.balance += quantity * price
+            user_profile.save()
+
+            Order.objects.create(
+                user=request.user,
+                stock=stock,
+                order_type='SELL',
+                quantity=quantity,
+                price=price,
+            )
+            return JsonResponse({"status": "success", "message": "Order placed successfully."})
+        else:
+            return JsonResponse({"status": "error", "message": "Insufficient stocks to sell."}, status=400)
+
+    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)

@@ -42,6 +42,8 @@ def fetch_stock_data_from_redis(selected_stock):
     print(f"\n[DEBUG] {selected_stock} Data for Chart:\n", df.tail())
     return df
 
+
+
 def update_chart(selected_stock):
     """Fetch data from Redis and update the chart."""
     try:
@@ -51,14 +53,34 @@ def update_chart(selected_stock):
             print(f"[WARNING] No valid data for {selected_stock}, chart will not update.")
             return
 
-        # Update chart
+        print("\n[DEBUG] Updating Chart with Data:\n", df.tail())
+
+        # Clear and update chart
         chart.set(df[["time", "open", "high", "low", "close", "volume"]])
 
-        # Send data to WebSocket (Non-blocking)
+        # Send data to WebSocket asynchronously (Fix applied here)
         asyncio.create_task(send_to_websocket(df.to_dict(orient="records"), selected_stock))
 
     except Exception as e:
         print("[ERROR] Failed to update chart:", e)
+
+# def update_chart(selected_stock):
+#     """Fetch data from Redis and update the chart."""
+#     try:
+#         df = fetch_stock_data_from_redis(selected_stock)
+
+#         if df.empty:
+#             print(f"[WARNING] No valid data for {selected_stock}, chart will not update.")
+#             return
+
+#         # Update chart
+#         chart.set(df[["time", "open", "high", "low", "close", "volume"]])
+
+#         # Send data to WebSocket (Non-blocking)
+#         asyncio.create_task(send_to_websocket(df.to_dict(orient="records"), selected_stock))
+
+#     except Exception as e:
+#         print("[ERROR] Failed to update chart:", e)
 
 def on_stock_select(event=None):
     """Handles stock selection from dropdown."""
