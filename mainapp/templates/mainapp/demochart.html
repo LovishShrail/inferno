@@ -1,0 +1,160 @@
+
+
+
+{% extends 'mainapp/index.html' %}
+
+{% block title %} Stock Trading {% endblock %}
+
+{% block css %}
+<style>
+  .container {
+    width: 80%;
+    margin: 20px auto;
+    text-align: center;
+  }
+  .order-form {
+    margin: 20px auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+  .order-form input, .order-form button {
+    padding: 10px;
+    font-size: 16px;
+  }
+  .balance {
+    margin-top: 20px;
+    font-size: 18px;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1>Stock Trading</h1>
+
+  <!-- Stock Selection Dropdown -->
+  <label for="stockSelector">Select Stock:</label>
+  <select id="stockSelector"></select> <!-- Dropdown is now dynamic -->
+
+  <!-- Buy/Sell Form -->
+  <div class="order-form">
+    <input type="number" id="quantity" placeholder="Quantity" min="1">
+    <button id="buyButton">Buy</button>
+    <button id="sellButton">Sell</button>
+  </div>
+
+  <!-- User Balance -->
+  <div class="balance">
+    <h3>Your Balance: <span id="userBalance"></span></h3>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Initialize WebSocket connection
+    const ws = new WebSocket("ws://localhost:8000/ws/stocktracker/");
+
+    ws.onopen = function () {
+      console.log("WebSocket Connected");
+    };
+
+    ws.onmessage = function (event) {
+      const data = JSON.parse(event.data);
+      console.log("Received Data:", data);
+
+      // Update the stock dropdown with available stocks
+      if (data.available_stocks) {
+        const selector = document.getElementById("stockSelector");
+        selector.innerHTML = ""; // Clear existing options
+        data.available_stocks.forEach(stock => {
+          const option = document.createElement("option");
+          option.value = stock;
+          option.textContent = stock;
+          selector.appendChild(option);
+        });
+      }
+
+      // Update user balance
+      if (data.user_balance) {
+        document.getElementById("userBalance").textContent = data.user_balance;
+      }
+    };
+
+    // Handle buy button click
+    document.getElementById("buyButton").addEventListener("click", function () {
+      const selectedStock = document.getElementById("stockSelector").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = 100; // Replace with actual price from Redis or WebSocket
+
+      fetch("/buy/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"), // Add CSRF token for security
+        },
+        body: JSON.stringify({
+          stock: selectedStock,
+          quantity: quantity,
+          price: price,
+        }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success") {
+          alert("Buy order placed successfully!");
+        } else {
+          alert(data.message);
+        }
+      });
+    });
+
+    // Handle sell button click
+    document.getElementById("sellButton").addEventListener("click", function () {
+      const selectedStock = document.getElementById("stockSelector").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = 100; // Replace with actual price from Redis or WebSocket
+
+      fetch("/sell/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"), // Add CSRF token for security
+        },
+        body: JSON.stringify({
+          stock: selectedStock,
+          quantity: quantity,
+          price: price,
+        }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success") {
+          alert("Sell order placed successfully!");
+        } else {
+          alert(data.message);
+        }
+      });
+    });
+
+    // Function to get CSRF token
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+  });
+</script>
+{% endblock %} 

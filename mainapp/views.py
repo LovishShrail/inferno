@@ -7,7 +7,7 @@ import redis
 import json
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum  # Import Sum for aggregation
-from .models import UserProfile, Order  # Import your models
+from .models import UserProfile, Order , StockDetail # Import your models
 
 
 
@@ -95,9 +95,28 @@ def stock_chart_data(request, stock_symbol):
 
 
 
+
+# Connect to Redis
+redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+def fetch_stock_data(selected_stock):
+    """Fetch latest candlestick data from Redis."""
+    redis_key = f"candlestick_data:{selected_stock}"
+    data = redis_conn.get(redis_key)
+
+    if not data:
+        return JsonResponse({"error": "No data found for stock"}, status=404)
+
+    return JsonResponse(json.loads(data), safe=False)
+
 def chart_view(request):
-    stocks = Stock.objects.all()  # Fetch all stocks from the database
-    return render(request, 'chart.html', {'stocks': stocks})
+    """Fetch stocks selected by the logged-in user."""
+    if request.user.is_authenticated:
+        selected_stocks = StockDetail.objects.filter(user=request.user).values_list("stock", flat=True)
+    else:
+        selected_stocks = []  # Empty list if user is not logged in
+
+    return render(request, "mainapp/chart.html", {"available_stocks": selected_stocks})
 
 
 
@@ -142,8 +161,8 @@ def sell_stock(request):
         user_profile = get_object_or_404(UserProfile, user=request.user)
 
         # Check if the user has enough stocks to sell
-        total_owned = Order.objects.filter(user=request.user, stock=stock, order_type='BUY').aggregate(total=models.Sum('quantity'))['total'] or 0
-        total_sold = Order.objects.filter(user=request.user, stock=stock, order_type='SELL').aggregate(total=models.Sum('quantity'))['total'] or 0
+        total_owned = Order.objects.filter(user=request.user, stock=stock, order_type='BUY').aggregate(total=Sum('quantity'))['total'] or 0
+        total_sold = Order.objects.filter(user=request.user, stock=stock, order_type='SELL').aggregate(total=Sum('quantity'))['total'] or 0
         available_quantity = total_owned - total_sold
 
         if available_quantity >= quantity:
