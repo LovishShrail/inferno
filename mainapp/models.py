@@ -16,6 +16,7 @@ class StockDetail(models.Model):
         return self.stock
 
 class UserStock(models.Model):
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     stock = models.CharField(max_length=10)
     quantity = models.PositiveIntegerField(default=0)

@@ -254,3 +254,54 @@ def get_live_prices(request):
 
 
 
+
+
+
+# def login_page(request):
+#     if request.method=="POST":
+        
+#         username=request.POST.get('username')
+#         password=request.POST.get('password')
+        
+#         if not User.objects.filter(username=username).exists():
+#             messages.error(request,'invalid username')
+#             return redirect('/login/')
+         
+#         user = authenticate(username=username,password=password) #we suse authenticate method to check the username and password because password is encrypted
+#         if user is None:
+#             messages.error(request,'invalid password')
+#             return redirect('/login/')  
+#         else:
+#             login(request,user) #login method is used to login the user and store the user in the session
+#             return redirect('/receipes/')   
+            
+#     return render(request,'login.html')  
+
+# def register(request):
+#     if request.method=="POST":
+#         first_name=request.POST.get('first_name')
+#         last_name=request.POST.get('last_name')
+#         username=request.POST.get('username')
+#         password=request.POST.get('password')
+        
+#         user =User.objects.filter(username=username)
+#         if user.exists():
+#             messages.info(request,'Username is already taken') 
+#             return redirect('/register/')
+#         user = User.objects.create(
+#             first_name=first_name,last_name=last_name,username=username)
+        
+#         #in django we use set_password method to store the password in encrypted form , it does not encrpyt the password by default because it is string     
+#         user.set_password(password)
+#         user.save()
+#         messages.info(request,'account created successfully')
+#         return redirect('/register/')       
+        
+    
+#     return render(request,'register.html')
+
+
+# def logout_page(request):
+#     logout(request)
+#     return render(request,'logout.html')
+    
