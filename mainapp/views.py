@@ -7,7 +7,15 @@ import redis
 import json
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum  # Import Sum for aggregation
-from .models import UserProfile, Order , StockDetail # Import your models
+from .models import UserProfile, StockDetail ,UserStock# Import your models
+from django.views.decorators.http import require_POST
+from decimal import Decimal
+from django.db import models 
+from django.views.decorators.csrf import csrf_exempt
+from decimal import Decimal
+
+
+
 
 
 
@@ -113,72 +121,67 @@ def chart_view(request):
     """Fetch stocks selected by the logged-in user."""
     if request.user.is_authenticated:
         selected_stocks = StockDetail.objects.filter(user=request.user).values_list("stock", flat=True)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        balance = user_profile.balance
     else:
         selected_stocks = []  # Empty list if user is not logged in
+        balance = 0
 
-    return render(request, "mainapp/chart.html", {"available_stocks": selected_stocks})
+    return render(request, "mainapp/chart.html", {
+        "available_stocks": selected_stocks,
+        "user": request.user,
+        "balance": balance
+    })
 
 
 
 
-@login_required
+@csrf_exempt
+@require_POST
 def buy_stock(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        stock = data.get('stock')
-        quantity = int(data.get('quantity'))
-        price = float(data.get('price'))
+    """Handle buying stocks for the logged-in user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
 
-        user_profile = get_object_or_404(UserProfile, user=request.user)
-        total_cost = quantity * price
+    stock_symbol = request.POST.get("stock_symbol")
+    quantity = int(request.POST.get("quantity"))
+    price = Decimal(request.POST.get("price"))
 
-        if user_profile.balance >= total_cost:
-            # Deduct balance and create order
-            user_profile.balance -= total_cost
-            user_profile.save()
+    # Fetch user profile and check balance
+    user_profile = UserProfile.objects.get(user=request.user)
+    total_cost = price * quantity
 
-            Order.objects.create(
-                user=request.user,
-                stock=stock,
-                order_type='BUY',
-                quantity=quantity,
-                price=price,
-            )
-            return JsonResponse({"status": "success", "message": "Order placed successfully."})
-        else:
-            return JsonResponse({"status": "error", "message": "Insufficient balance."}, status=400)
+    if user_profile.balance < total_cost:
+        return JsonResponse({"error": "Insufficient balance"}, status=400)
 
-    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+    # Deduct balance and add stock to user's portfolio
+    user_profile.balance -= total_cost
+    user_profile.save()
 
-@login_required
-def sell_stock(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        stock = data.get('stock')
-        quantity = int(data.get('quantity'))
-        price = float(data.get('price'))
+    # Add stock to user's portfolio (assuming a model called `UserStock` exists)
+    user_stock, created = UserStock.objects.get_or_create(
+        user=request.user,
+        stock=stock_symbol,
+        defaults={"quantity": quantity, "average_price": price}
+    )
 
-        user_profile = get_object_or_404(UserProfile, user=request.user)
+    if not created:
+        # Update existing stock entry
+        total_quantity = user_stock.quantity + quantity
+        user_stock.average_price = (
+            (user_stock.average_price * user_stock.quantity) + (price * quantity)
+        ) / total_quantity
+        user_stock.quantity = total_quantity
+        user_stock.save()
 
-        # Check if the user has enough stocks to sell
-        total_owned = Order.objects.filter(user=request.user, stock=stock, order_type='BUY').aggregate(total=Sum('quantity'))['total'] or 0
-        total_sold = Order.objects.filter(user=request.user, stock=stock, order_type='SELL').aggregate(total=Sum('quantity'))['total'] or 0
-        available_quantity = total_owned - total_sold
-
-        if available_quantity >= quantity:
-            # Add balance and create order
-            user_profile.balance += quantity * price
-            user_profile.save()
-
-            Order.objects.create(
-                user=request.user,
-                stock=stock,
-                order_type='SELL',
-                quantity=quantity,
-                price=price,
-            )
-            return JsonResponse({"status": "success", "message": "Order placed successfully."})
-        else:
-            return JsonResponse({"status": "error", "message": "Insufficient stocks to sell."}, status=400)
-
-    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+    return JsonResponse({
+        "success": True,
+        "balance": float(user_profile.balance),
+        "stock": stock_symbol,
+        "quantity": quantity,
+        "price": float(price)
+    })
+    
+@property
+def total_value(self):
+    return self.quantity * self.average_price    
