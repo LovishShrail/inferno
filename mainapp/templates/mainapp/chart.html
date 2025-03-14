@@ -2,7 +2,6 @@
 {% load static %}
 
 {% block title %}Stock Trading{% endblock %}
-
 {% block body %}
 <div class="container">
     <h1>Stock Trading</h1>
@@ -26,8 +25,11 @@
             <label>Price: $</label>
             <input type="number" id="price" class="form-control" min="0.01" step="0.01" required>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-3">
             <button id="buy_button" class="btn btn-success">Buy</button>
+        </div>
+        <div class="col-md-3">
+            <button id="sell_button" class="btn btn-danger">Sell</button>
         </div>
     </div>
 
@@ -75,11 +77,18 @@
 
         for (const [stock, details] of Object.entries(data)) {
           const row = document.createElement("tr");
+
+          // Add red color and negative sign if price is negative
+          const livePrice = details.live_price;
+          const totalValue = details.total_value;
+          const livePriceClass = livePrice < 0 ? "text-danger" : "";
+          const totalValueClass = totalValue < 0 ? "text-danger" : "";
+
           row.innerHTML = `
             <td>${stock}</td>
             <td>${details.quantity}</td>
-            <td>$${details.live_price.toFixed(2)}</td>
-            <td>$${details.total_value.toFixed(2)}</td>
+            <td class="${livePriceClass}">$${livePrice.toFixed(2)}</td>
+            <td class="${totalValueClass}">$${totalValue.toFixed(2)}</td>
           `;
           portfolioTable.appendChild(row);
         }
@@ -111,7 +120,7 @@
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "X-CSRFToken": "{{ csrf_token }}",  // Ensure CSRF token is included
+        "X-CSRFToken": "{{ csrf_token }}",
       },
       body: new URLSearchParams({
         stock_symbol: stockSymbol,
@@ -133,6 +142,47 @@
       .catch((error) => {
         console.error("Error:", error);
         alert("An error occurred while buying the stock.");
+      });
+  });
+
+  // Sell button logic
+  document.getElementById("sell_button").addEventListener("click", function () {
+    const stockSymbol = document.getElementById("stock_selector").value;
+    const quantity = parseInt(document.getElementById("quantity").value);
+    const price = parseFloat(document.getElementById("price").value);
+
+    if (!stockSymbol || !quantity || !price) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    // Send AJAX request to sell stock
+    fetch("/sell_stock/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: new URLSearchParams({
+        stock_symbol: stockSymbol,
+        quantity: quantity,
+        price: price,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          alert(`Successfully sold ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
+          // Update balance and portfolio
+          document.getElementById("user_balance").innerText = data.balance.toFixed(2);
+          updatePortfolio();
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while selling the stock.");
       });
   });
 </script>

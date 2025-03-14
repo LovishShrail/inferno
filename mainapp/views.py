@@ -182,6 +182,53 @@ def buy_stock(request):
         "price": float(price)
     })
     
+    
+@csrf_exempt
+@require_POST
+def sell_stock(request):
+    """Handle selling stocks for the logged-in user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+
+    stock_symbol = request.POST.get("stock_symbol")
+    quantity = int(request.POST.get("quantity"))
+    price = Decimal(request.POST.get("price"))
+
+    # Fetch user profile and check if the user owns the stock
+    user_profile = UserProfile.objects.get(user=request.user)
+    user_stock = UserStock.objects.filter(user=request.user, stock=stock_symbol).first()
+
+    if not user_stock:
+        return JsonResponse({"error": "You do not own this stock"}, status=400)
+
+    if user_stock.quantity < quantity:
+        return JsonResponse({"error": "Insufficient quantity to sell"}, status=400)
+
+    # Calculate total sale value
+    total_sale_value = price * quantity
+
+    # Update user balance
+    user_profile.balance += total_sale_value
+    user_profile.save()
+
+    # Update or delete the user's stock holding
+    if user_stock.quantity == quantity:
+        user_stock.delete()  # Delete the stock if all shares are sold
+    else:
+        user_stock.quantity -= quantity
+        user_stock.save()
+
+    return JsonResponse({
+        "success": True,
+        "balance": float(user_profile.balance),
+        "stock": stock_symbol,
+        "quantity": quantity,
+        "price": float(price)
+    })    
+    
+    
+    
+    
 
 def get_live_prices(request):
     """Fetch live prices for the user's bought stocks."""
@@ -204,3 +251,6 @@ def get_live_prices(request):
             }
 
     return JsonResponse(live_prices)
+
+
+
