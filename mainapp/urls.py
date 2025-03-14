@@ -9,6 +9,7 @@ urlpatterns = [
     path("chart-data/", views.fetch_stock_data, name="chart_data"),
     path('stock_chart_data/<str:stock_symbol>/', views.stock_chart_data, name='stock_chart_data'),
     path('buy_stock/', views.buy_stock, name='buy_stock'),
+    path('get_live_prices/', views.get_live_prices, name='get_live_prices'),
    
     
 ]

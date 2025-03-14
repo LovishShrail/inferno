@@ -182,6 +182,25 @@ def buy_stock(request):
         "price": float(price)
     })
     
-@property
-def total_value(self):
-    return self.quantity * self.average_price    
+
+def get_live_prices(request):
+    """Fetch live prices for the user's bought stocks."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+
+    # Fetch user's bought stocks
+    user_stocks = UserStock.objects.filter(user=request.user)
+    live_prices = {}
+
+    for stock in user_stocks:
+        redis_key = f"candlestick_data:{stock.stock}"
+        data = redis_conn.get(redis_key)
+
+        if data:
+            latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+            live_prices[stock.stock] = {
+                "live_price": latest_data["close"],
+                "total_value": float(stock.quantity * latest_data["close"]),
+            }
+
+    return JsonResponse(live_prices)

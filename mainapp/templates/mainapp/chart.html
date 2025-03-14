@@ -36,15 +36,16 @@
         Balance: $<span id="user_balance">{{ balance }}</span>
     </div>
 </div>
+
 <!-- Bought Stocks -->
-<div class="mt-4">
+<div class="container mt-4">
     <h3>Your Portfolio</h3>
     <table class="table">
         <thead>
             <tr>
                 <th>Stock</th>
                 <th>Quantity</th>
-                <th>Average Price</th>
+                <th>Live Price</th>
                 <th>Total Value</th>
             </tr>
         </thead>
@@ -64,43 +65,75 @@
 
 {% block js %}
 <script>
-    document.getElementById("buy_button").addEventListener("click", function () {
-      const stockSymbol = document.getElementById("stock_selector").value;
-      const quantity = parseInt(document.getElementById("quantity").value);
-      const price = parseFloat(document.getElementById("price").value);
-  
-      if (!stockSymbol || !quantity || !price) {
-        alert("Please fill in all fields.");
-        return;
-      }
-  
-      // Send AJAX request to buy stock
-      fetch("/buy_stock/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRFToken": "{{ csrf_token }}",  // Ensure CSRF token is included
-        },
-        body: new URLSearchParams({
-          stock_symbol: stockSymbol,
-          quantity: quantity,
-          price: price,
-        }),
+  // Function to fetch live prices and update the portfolio
+  function updatePortfolio() {
+    fetch("/get_live_prices/")
+      .then((response) => response.json())
+      .then((data) => {
+        const portfolioTable = document.getElementById("portfolio");
+        portfolioTable.innerHTML = "";  // Clear existing rows
+
+        for (const [stock, details] of Object.entries(data)) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${stock}</td>
+            <td>${details.quantity}</td>
+            <td>$${details.live_price.toFixed(2)}</td>
+            <td>$${details.total_value.toFixed(2)}</td>
+          `;
+          portfolioTable.appendChild(row);
+        }
       })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.error) {
-            alert(data.error);
-          } else {
-            alert(`Successfully bought ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
-            // Update balance on the page
-            document.getElementById("user_balance").innerText = data.balance.toFixed(2);
-          }
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          alert("An error occurred while buying the stock.");
-        });
-    });
-  </script>
+      .catch((error) => {
+        console.error("Error fetching live prices:", error);
+      });
+  }
+
+  // Update portfolio every 5 seconds
+  setInterval(updatePortfolio, 5000);
+
+  // Initial update
+  updatePortfolio();
+
+  // Buy button logic
+  document.getElementById("buy_button").addEventListener("click", function () {
+    const stockSymbol = document.getElementById("stock_selector").value;
+    const quantity = parseInt(document.getElementById("quantity").value);
+    const price = parseFloat(document.getElementById("price").value);
+
+    if (!stockSymbol || !quantity || !price) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    // Send AJAX request to buy stock
+    fetch("/buy_stock/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": "{{ csrf_token }}",  // Ensure CSRF token is included
+      },
+      body: new URLSearchParams({
+        stock_symbol: stockSymbol,
+        quantity: quantity,
+        price: price,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          alert(`Successfully bought ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
+          // Update balance and portfolio
+          document.getElementById("user_balance").innerText = data.balance.toFixed(2);
+          updatePortfolio();
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while buying the stock.");
+      });
+  });
+</script>
 {% endblock %}
