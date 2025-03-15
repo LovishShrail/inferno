@@ -135,7 +135,6 @@ def chart_view(request):
 
 
 
-
 @csrf_exempt
 @require_POST
 def buy_stock(request):
@@ -145,11 +144,20 @@ def buy_stock(request):
 
     stock_symbol = request.POST.get("stock_symbol")
     quantity = int(request.POST.get("quantity"))
-    price = Decimal(request.POST.get("price"))
+
+    # Fetch current market price from Redis
+    redis_key = f"candlestick_data:{stock_symbol}"
+    data = redis_conn.get(redis_key)
+
+    if not data:
+        return JsonResponse({"error": "No data found for the selected stock"}, status=404)
+
+    latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+    market_price = Decimal(latest_data["close"])  # Use the closing price as the market price
 
     # Fetch user profile and check balance
     user_profile = UserProfile.objects.get(user=request.user)
-    total_cost = price * quantity
+    total_cost = market_price * quantity
 
     if user_profile.balance < total_cost:
         return JsonResponse({"error": "Insufficient balance"}, status=400)
@@ -158,18 +166,18 @@ def buy_stock(request):
     user_profile.balance -= total_cost
     user_profile.save()
 
-    # Add stock to user's portfolio (assuming a model called `UserStock` exists)
+    # Add stock to user's portfolio
     user_stock, created = UserStock.objects.get_or_create(
         user=request.user,
         stock=stock_symbol,
-        defaults={"quantity": quantity, "average_price": price}
+        defaults={"quantity": quantity, "average_price": market_price}
     )
 
     if not created:
         # Update existing stock entry
         total_quantity = user_stock.quantity + quantity
         user_stock.average_price = (
-            (user_stock.average_price * user_stock.quantity) + (price * quantity)
+            (user_stock.average_price * user_stock.quantity) + (market_price * quantity)
         ) / total_quantity
         user_stock.quantity = total_quantity
         user_stock.save()
@@ -179,8 +187,53 @@ def buy_stock(request):
         "balance": float(user_profile.balance),
         "stock": stock_symbol,
         "quantity": quantity,
-        "price": float(price)
+        "price": float(market_price)  # Return the market price used for the purchase
     })
+# @csrf_exempt
+# @require_POST
+# def buy_stock(request):
+#     """Handle buying stocks for the logged-in user."""
+#     if not request.user.is_authenticated:
+#         return JsonResponse({"error": "User not authenticated"}, status=401)
+
+#     stock_symbol = request.POST.get("stock_symbol")
+#     quantity = int(request.POST.get("quantity"))
+#     price = Decimal(request.POST.get("price"))
+
+#     # Fetch user profile and check balance
+#     user_profile = UserProfile.objects.get(user=request.user)
+#     total_cost = price * quantity
+
+#     if user_profile.balance < total_cost:
+#         return JsonResponse({"error": "Insufficient balance"}, status=400)
+
+#     # Deduct balance and add stock to user's portfolio
+#     user_profile.balance -= total_cost
+#     user_profile.save()
+
+#     # Add stock to user's portfolio (assuming a model called `UserStock` exists)
+#     user_stock, created = UserStock.objects.get_or_create(
+#         user=request.user,
+#         stock=stock_symbol,
+#         defaults={"quantity": quantity, "average_price": price}
+#     )
+
+#     if not created:
+#         # Update existing stock entry
+#         total_quantity = user_stock.quantity + quantity
+#         user_stock.average_price = (
+#             (user_stock.average_price * user_stock.quantity) + (price * quantity)
+#         ) / total_quantity
+#         user_stock.quantity = total_quantity
+#         user_stock.save()
+
+#     return JsonResponse({
+#         "success": True,
+#         "balance": float(user_profile.balance),
+#         "stock": stock_symbol,
+#         "quantity": quantity,
+#         "price": float(price)
+#     })
     
     
 @csrf_exempt
