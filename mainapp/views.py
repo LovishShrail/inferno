@@ -246,6 +246,7 @@ def get_live_prices(request):
         if data:
             latest_data = json.loads(data)[-1]  # Get the latest candlestick data
             live_prices[stock.stock] = {
+                "quantity": stock.quantity,
                 "live_price": latest_data["close"],
                 "total_value": float(stock.quantity * latest_data["close"]),
             }

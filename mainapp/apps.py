@@ -3,13 +3,19 @@ import redis
 from django.db.models.signals import post_migrate
 
 def reset_user_stocks(sender, **kwargs):
+    from .models import UserStock ,UserProfile
+
     """Clear the UserStock table when the app starts."""
-    from .models import UserStock
+    
     try:
         UserStock.objects.all().delete()
         print("UserStock table cleared on startup!")
+        # Reset UserProfile balance
+        UserProfile.objects.all().update(balance=10000.00)  # Set default balance
+        print("UserProfile balance reset on startup!")
     except Exception as e:
         print(f"Error clearing UserStock table: {e}")
+        
 
 class MainappConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
