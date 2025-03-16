@@ -12,6 +12,7 @@ urlpatterns = [
     path('get_live_prices/', views.get_live_prices, name='get_live_prices'),
     path('sell_stock/', views.sell_stock, name='sell_stock'),
     path('place_order/', views.place_order, name='place_order'),
+    path('order_history/', views.order_history, name='order_history'), 
     
    
     

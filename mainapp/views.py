@@ -224,7 +224,41 @@ def get_live_prices(request):
 
 
 
+def order_history(request):
+    """Fetch all orders (market and limit) for the logged-in user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
 
+    # Fetch executed market orders (from UserStock)
+    executed_orders = []
+    user_stocks = UserStock.objects.filter(user=request.user)
+    for stock in user_stocks:
+        executed_orders.append({
+            "type": "Market Order",
+            "stock": stock.stock,
+            "quantity": stock.quantity,
+            "price": float(stock.average_price),
+            "status": "Executed",
+            "timestamp": stock.created_at if hasattr(stock, 'created_at') else "N/A",
+        })
+
+    # Fetch pending limit orders (from LimitOrder)
+    pending_orders = []
+    limit_orders = LimitOrder.objects.filter(user=request.user)
+    for order in limit_orders:
+        pending_orders.append({
+            "type": "Limit Order",
+            "stock": order.stock,
+            "quantity": order.quantity,
+            "price": float(order.price),
+            "status": "Pending",
+            "timestamp": order.created_at,
+        })
+
+    # Combine executed and pending orders
+    all_orders = executed_orders + pending_orders
+
+    return render(request, "mainapp/order_history.html", {"orders": all_orders})
 
 
 

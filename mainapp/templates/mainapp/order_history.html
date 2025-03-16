@@ -1,0 +1,36 @@
+{% extends 'mainapp/index.html' %}
+{% load static %}
+
+{% block title %}Order History{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Order History</h1>
+    
+    <!-- Table to display all orders -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Stock</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.type }}</td>
+                <td>{{ order.stock }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>${{ order.price|floatformat:2 }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.timestamp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
