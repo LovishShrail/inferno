@@ -15,18 +15,33 @@
         </select>
     </div>
 
-    <!-- Buy Form -->
+    <!-- Quantity Input -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <label>Quantity:</label>
             <input type="number" id="quantity" class="form-control" min="1" value="1">
         </div>
+    </div>
+
+    <!-- Order Type Selection -->
+    <div class="row g-3 mb-4">
         <div class="col-md-3">
-          <label>Price: $</label>
-          <input type="number" id="price" class="form-control" min="0.01" step="0.01" readonly>
-      </div>
+            <label>Order Type:</label>
+            <select id="order_type" class="form-select">
+                <option value="market">Market Order</option>
+                <option value="limit">Limit Order</option>
+            </select>
+        </div>
+        <div class="col-md-3" id="price_input" style="display: none;">
+            <label>Price: $</label>
+            <input type="number" id="price" class="form-control" min="0.01" step="0.01">
+        </div>
+    </div>
+
+    <!-- Buy/Sell Buttons -->
+    <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <button id="buy_button" class="btn btn-success">Buy at market price</button>
+            <button id="buy_button" class="btn btn-success">Buy</button>
         </div>
         <div class="col-md-3">
             <button id="sell_button" class="btn btn-danger">Sell</button>
@@ -104,58 +119,91 @@
   // Initial update
   updatePortfolio();
 
+  // Show/hide price input based on order type
+  document.getElementById("order_type").addEventListener("change", function () {
+    const priceInput = document.getElementById("price_input");
+    if (this.value === "limit") {
+      priceInput.style.display = "block";
+    } else {
+      priceInput.style.display = "none";
+    }
+  });
+
   // Buy button logic
   document.getElementById("buy_button").addEventListener("click", function () {
     const stockSymbol = document.getElementById("stock_selector").value;
     const quantity = parseInt(document.getElementById("quantity").value);
+    const orderType = document.getElementById("order_type").value;
+    const price = orderType === "limit" ? parseFloat(document.getElementById("price").value) : null;
 
     if (!stockSymbol || !quantity) {
-      alert("Please fill in all fields.");
+      alert("Please select a stock and enter a quantity.");
       return;
     }
 
-    // Send AJAX request to buy stock
-    fetch("/buy_stock/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "X-CSRFToken": "{{ csrf_token }}",
-      },
-      body: new URLSearchParams({
-        stock_symbol: stockSymbol,
-        quantity: quantity,
-        
-      }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.error) {
-          alert(data.error);
-        } else {
-          alert(`Successfully bought ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
-          // Update balance and portfolio
-          document.getElementById("user_balance").innerText = data.balance.toFixed(2);
-          updatePortfolio();
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("An error occurred while buying the stock.");
-      });
+    if (orderType === "limit" && !price) {
+      alert("Please enter a price for the limit order.");
+      return;
+    }
+
+    // Send AJAX request to place order
+    fetch("/place_order/", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "X-CSRFToken": "{{ csrf_token }}",
+  },
+  body: new URLSearchParams({
+    stock_symbol: stockSymbol,
+    quantity: quantity,
+    order_type: orderType,
+    price: price,
+    action: "buy",  // or "sell"
+  }),
+})
+  .then((response) => response.json())
+  .then((data) => {
+    console.log("Server Response:", data);  // Log the server response
+    if (data.error) {
+      alert(data.error);
+    } else {
+      if (data.message) {
+        // Limit order placed successfully
+        alert(data.message);
+      } else {
+        // Market order executed successfully
+        alert(`Successfully bought ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
+        // Update balance and portfolio
+        document.getElementById("user_balance").innerText = data.balance.toFixed(2);
+        updatePortfolio();
+      }
+    }
+  })
+  .catch((error) => {
+    console.error("Error:", error);
+    alert("An error occurred while placing the order.");
+  });
   });
 
   // Sell button logic
   document.getElementById("sell_button").addEventListener("click", function () {
     const stockSymbol = document.getElementById("stock_selector").value;
     const quantity = parseInt(document.getElementById("quantity").value);
+    const orderType = document.getElementById("order_type").value;
+    const price = orderType === "limit" ? parseFloat(document.getElementById("price").value) : null;
 
-    if (!stockSymbol || !quantity ) {
-      alert("Please fill in all fields.");
+    if (!stockSymbol || !quantity) {
+      alert("Please select a stock and enter a quantity.");
       return;
     }
 
-    // Send AJAX request to sell stock
-    fetch("/sell_stock/", {
+    if (orderType === "limit" && !price) {
+      alert("Please enter a price for the limit order.");
+      return;
+    }
+
+    // Send AJAX request to place order
+    fetch("/place_order/", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -164,7 +212,9 @@
       body: new URLSearchParams({
         stock_symbol: stockSymbol,
         quantity: quantity,
-        
+        order_type: orderType,
+        price: price,
+        action: "sell",
       }),
     })
       .then((response) => response.json())
@@ -172,15 +222,21 @@
         if (data.error) {
           alert(data.error);
         } else {
-          alert(`Successfully sold ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
-          // Update balance and portfolio
-          document.getElementById("user_balance").innerText = data.balance.toFixed(2);
-          updatePortfolio();
+          if (data.message) {
+            // Limit order placed successfully
+            alert(data.message);
+          } else {
+            // Market order executed successfully
+            alert(`Successfully sold ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
+            // Update balance and portfolio
+            document.getElementById("user_balance").innerText = data.balance.toFixed(2);
+            updatePortfolio();
+          }
         }
       })
       .catch((error) => {
         console.error("Error:", error);
-        alert("An error occurred while selling the stock.");
+        alert("An error occurred while placing the order.");
       });
   });
 </script>

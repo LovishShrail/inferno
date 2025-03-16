@@ -4,7 +4,10 @@ import json
 import redis
 from channels.layers import get_channel_layer
 import asyncio
-from mainapp.models import StockDetail
+from mainapp.models import StockDetail,LimitOrder
+from decimal import Decimal
+from .order_utils import buy_stock, sell_stock 
+
 
 # Redis Connection
 redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
@@ -78,3 +81,35 @@ def update_stock(selected_stocks=None):
         "message": data,
     }))
     loop.close()
+    
+    
+
+
+@shared_task
+def process_limit_orders():
+    """Check and execute limit orders."""
+    redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+    for order in LimitOrder.objects.all():
+        redis_key = f"candlestick_data:{order.stock}"
+        data = redis_conn.get(redis_key)
+
+        if not data:
+            continue
+
+        latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+        market_price = Decimal(latest_data["close"])
+
+        if (order.order_type == "BUY" and market_price <= order.price) or \
+           (order.order_type == "SELL" and market_price >= order.price):
+            # Execute the order
+            if order.order_type == "BUY":
+                result = buy_stock(order.user, order.stock, order.quantity, order.price)
+            else:
+                result = sell_stock(order.user, order.stock, order.quantity, order.price)
+
+            if "error" in result:
+                print(f"Error executing limit order: {result['error']}")
+            else:
+                print(f"Executed limit order: {order}")
+                order.delete()  # Remove the limit order after execution

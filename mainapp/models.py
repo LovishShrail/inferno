@@ -29,3 +29,23 @@ class UserStock(models.Model):
     def total_value(self):
         """Calculate the total value of the stock holding."""
         return self.quantity * self.average_price
+    
+    
+    
+
+
+class LimitOrder(models.Model):
+    ORDER_TYPES = [
+        ('BUY', 'Buy'),
+        ('SELL', 'Sell'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    stock = models.CharField(max_length=10)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    order_type = models.CharField(max_length=4, choices=ORDER_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.order_type} {self.quantity} shares of {self.stock} at ${self.price}" 
