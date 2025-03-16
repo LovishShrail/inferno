@@ -189,6 +189,8 @@ def buy_stock(request):
         "quantity": quantity,
         "price": float(market_price)  # Return the market price used for the purchase
     })
+    
+    
 # @csrf_exempt
 # @require_POST
 # def buy_stock(request):
@@ -236,6 +238,7 @@ def buy_stock(request):
 #     })
     
     
+    
 @csrf_exempt
 @require_POST
 def sell_stock(request):
@@ -245,7 +248,16 @@ def sell_stock(request):
 
     stock_symbol = request.POST.get("stock_symbol")
     quantity = int(request.POST.get("quantity"))
-    price = Decimal(request.POST.get("price"))
+
+    # Fetch current market price from Redis
+    redis_key = f"candlestick_data:{stock_symbol}"
+    data = redis_conn.get(redis_key)
+
+    if not data:
+        return JsonResponse({"error": "No data found for the selected stock"}, status=404)
+
+    latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+    market_price = Decimal(latest_data["close"])  # Use the closing price as the market price
 
     # Fetch user profile and check if the user owns the stock
     user_profile = UserProfile.objects.get(user=request.user)
@@ -258,7 +270,7 @@ def sell_stock(request):
         return JsonResponse({"error": "Insufficient quantity to sell"}, status=400)
 
     # Calculate total sale value
-    total_sale_value = price * quantity
+    total_sale_value = market_price * quantity
 
     # Update user balance
     user_profile.balance += total_sale_value
@@ -276,8 +288,52 @@ def sell_stock(request):
         "balance": float(user_profile.balance),
         "stock": stock_symbol,
         "quantity": quantity,
-        "price": float(price)
+        "price": float(market_price)  # Return the market price used for the sale
     })    
+    
+    
+# @csrf_exempt
+# @require_POST
+# def sell_stock(request):
+#     """Handle selling stocks for the logged-in user."""
+#     if not request.user.is_authenticated:
+#         return JsonResponse({"error": "User not authenticated"}, status=401)
+
+#     stock_symbol = request.POST.get("stock_symbol")
+#     quantity = int(request.POST.get("quantity"))
+#     price = Decimal(request.POST.get("price"))
+
+#     # Fetch user profile and check if the user owns the stock
+#     user_profile = UserProfile.objects.get(user=request.user)
+#     user_stock = UserStock.objects.filter(user=request.user, stock=stock_symbol).first()
+
+#     if not user_stock:
+#         return JsonResponse({"error": "You do not own this stock"}, status=400)
+
+#     if user_stock.quantity < quantity:
+#         return JsonResponse({"error": "Insufficient quantity to sell"}, status=400)
+
+#     # Calculate total sale value
+#     total_sale_value = price * quantity
+
+#     # Update user balance
+#     user_profile.balance += total_sale_value
+#     user_profile.save()
+
+#     # Update or delete the user's stock holding
+#     if user_stock.quantity == quantity:
+#         user_stock.delete()  # Delete the stock if all shares are sold
+#     else:
+#         user_stock.quantity -= quantity
+#         user_stock.save()
+
+#     return JsonResponse({
+#         "success": True,
+#         "balance": float(user_profile.balance),
+#         "stock": stock_symbol,
+#         "quantity": quantity,
+#         "price": float(price)
+#     })    
     
     
     
