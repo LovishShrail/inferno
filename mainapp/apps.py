@@ -2,8 +2,8 @@ from django.apps import AppConfig
 import redis
 from django.db.models.signals import post_migrate
 
-def reset_orders_and_balance(sender, **kwargs):
-    """Clear the UserStock and LimitOrder tables and reset UserProfile balance after the app is ready."""
+def reset_orders_and_balance():
+    """Clear the UserStock and LimitOrder tables and reset UserProfile balance."""
     from .models import UserStock, LimitOrder, UserProfile
 
     try:
@@ -35,6 +35,5 @@ class MainappConfig(AppConfig):
         except Exception as e:
             print(f"Error clearing Redis: {e}")
 
-        # Connect the reset function to the post_migrate signal
-        from django.db.models.signals import post_migrate
-        post_migrate.connect(reset_orders_and_balance, sender=self)
+        # Reset orders and balance
+        reset_orders_and_balance()
