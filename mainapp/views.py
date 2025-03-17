@@ -146,6 +146,7 @@ def place_order(request):
     quantity = int(request.POST.get("quantity"))
     order_type = request.POST.get("order_type")  # 'market' or 'limit'
     price = request.POST.get("price")  # Required for limit orders
+    action = request.POST.get("action")  # 'buy' or 'sell'
 
     # Fetch current market price from Redis
     redis_key = f"candlestick_data:{stock_symbol}"
@@ -157,11 +158,22 @@ def place_order(request):
     latest_data = json.loads(data)[-1]  # Get the latest candlestick data
     market_price = Decimal(latest_data["close"])  # Use the closing price as the market price
 
+    # Validate sell orders
+    if action == "sell":
+        # Check if the user owns the stock
+        user_stock = UserStock.objects.filter(user=request.user, stock=stock_symbol).first()
+        if not user_stock:
+            return JsonResponse({"error": "You do not own this stock"}, status=400)
+
+        # Check if the user has enough shares to sell
+        if user_stock.quantity < quantity:
+            return JsonResponse({"error": "Not enough holding shares"}, status=400)
+
     if order_type == "market":
         # Execute market order immediately
-        if request.POST.get("action") == "buy":
+        if action == "buy":
             result = buy_stock(request.user, stock_symbol, quantity, market_price)
-        elif request.POST.get("action") == "sell":
+        elif action == "sell":
             result = sell_stock(request.user, stock_symbol, quantity, market_price)
         else:
             return JsonResponse({"error": "Invalid action"}, status=400)
@@ -187,7 +199,7 @@ def place_order(request):
             stock=stock_symbol,
             quantity=quantity,
             price=limit_price,
-            order_type="BUY" if request.POST.get("action") == "buy" else "SELL",
+            order_type="BUY" if action == "buy" else "SELL",
         )
         return JsonResponse({
             "success": True,
@@ -195,8 +207,6 @@ def place_order(request):
         })
     else:
         return JsonResponse({"error": "Invalid order type"}, status=400)
-
-
 
 
 def get_live_prices(request):
