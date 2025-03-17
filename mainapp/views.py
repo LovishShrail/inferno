@@ -229,17 +229,17 @@ def order_history(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "User not authenticated"}, status=401)
 
-    # Fetch executed market orders (from UserStock)
+    # Fetch executed market orders and executed limit orders (from UserStock)
     executed_orders = []
     user_stocks = UserStock.objects.filter(user=request.user)
     for stock in user_stocks:
         executed_orders.append({
-            "type": "Market Order",
+            "type": "Limit Order" if stock.order_type == "LIMIT" else "Market Order",
             "stock": stock.stock,
             "quantity": stock.quantity,
             "price": float(stock.average_price),
             "status": "Executed",
-            "timestamp": stock.created_at if hasattr(stock, 'created_at') else "N/A",
+            "timestamp": stock.created_at,
         })
 
     # Fetch pending limit orders (from LimitOrder)
@@ -259,7 +259,6 @@ def order_history(request):
     all_orders = executed_orders + pending_orders
 
     return render(request, "mainapp/order_history.html", {"orders": all_orders})
-
 
 
 # @csrf_exempt

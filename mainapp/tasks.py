@@ -95,18 +95,21 @@ def process_limit_orders():
         data = redis_conn.get(redis_key)
 
         if not data:
+            print(f"No data found for stock: {order.stock}")
             continue
 
         latest_data = json.loads(data)[-1]  # Get the latest candlestick data
         market_price = Decimal(latest_data["close"])
 
+        print(f"Checking limit order: {order} | Market Price: {market_price}")
+
         if (order.order_type == "BUY" and market_price <= order.price) or \
            (order.order_type == "SELL" and market_price >= order.price):
             # Execute the order
             if order.order_type == "BUY":
-                result = buy_stock(order.user, order.stock, order.quantity, order.price)
+                result = buy_stock(order.user, order.stock, order.quantity, order.price, order_type='LIMIT')
             else:
-                result = sell_stock(order.user, order.stock, order.quantity, order.price)
+                result = sell_stock(order.user, order.stock, order.quantity, order.price, order_type='LIMIT')
 
             if "error" in result:
                 print(f"Error executing limit order: {result['error']}")

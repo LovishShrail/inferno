@@ -1,7 +1,7 @@
 from decimal import Decimal
 from .models import UserStock, UserProfile
 
-def buy_stock(user, stock_symbol, quantity, price):
+def buy_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
     """Handle buying stocks."""
     user_profile = UserProfile.objects.get(user=user)
     total_cost = price * quantity
@@ -17,7 +17,7 @@ def buy_stock(user, stock_symbol, quantity, price):
     user_stock, created = UserStock.objects.get_or_create(
         user=user,
         stock=stock_symbol,
-        defaults={"quantity": quantity, "average_price": price}
+        defaults={"quantity": quantity, "average_price": price, "order_type": order_type}
     )
 
     if not created:
@@ -27,6 +27,7 @@ def buy_stock(user, stock_symbol, quantity, price):
             (user_stock.average_price * user_stock.quantity) + (price * quantity)
         ) / total_quantity
         user_stock.quantity = total_quantity
+        user_stock.order_type = order_type  # Update order type
         user_stock.save()
 
     return {
@@ -38,7 +39,7 @@ def buy_stock(user, stock_symbol, quantity, price):
     }
 
 
-def sell_stock(user, stock_symbol, quantity, price):
+def sell_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
     """Handle selling stocks."""
     user_profile = UserProfile.objects.get(user=user)
     user_stock = UserStock.objects.filter(user=user, stock=stock_symbol).first()
@@ -61,6 +62,7 @@ def sell_stock(user, stock_symbol, quantity, price):
         user_stock.delete()  # Delete the stock if all shares are sold
     else:
         user_stock.quantity -= quantity
+        user_stock.order_type = order_type  # Update order type
         user_stock.save()
 
     return {
