@@ -59,66 +59,76 @@
 <div class="container mt-4">
     <h3>Your Portfolio</h3>
     <table class="table">
-        <thead>
-            <tr>
-                <th>Stock</th>
-                <th>Quantity</th>
-                <th>Live Price</th>
-                <th>Total Value</th>
-            </tr>
-        </thead>
-        <tbody id="portfolio">
-            {% for stock in request.user.userstock_set.all %}
-            <tr>
-                <td>{{ stock.stock }}</td>
-                <td>{{ stock.quantity }}</td>
-                <td>${{ stock.average_price|floatformat:2 }}</td>
-                <td>${{ stock.total_value|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+      <thead>
+          <tr>
+              <th>Stock</th>
+              <th>Quantity</th>
+              <th>Average Price</th>
+              <th>Current Price</th>
+              <th>Total Value</th>
+              <th>Profit/Loss</th>
+          </tr>
+      </thead>
+      <tbody id="portfolio-table">
+          <!-- Rows will be populated dynamically using JavaScript -->
+      </tbody>
+  </table>
 </div>
 {% endblock %}
 
 {% block js %}
 <script>
   // Function to fetch live prices and update the portfolio
-  function updatePortfolio() {
-    fetch("/get_live_prices/")
-      .then((response) => response.json())
-      .then((data) => {
-        const portfolioTable = document.getElementById("portfolio");
-        portfolioTable.innerHTML = "";  // Clear existing rows
+  function fetchLivePrices() {
+    fetch('/get_live_prices/')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('portfolio-table');
+            tableBody.innerHTML = '';  // Clear existing rows
 
-        for (const [stock, details] of Object.entries(data)) {
-          const row = document.createElement("tr");
+            for (const [stock, details] of Object.entries(data)) {
+                const row = document.createElement('tr');
 
-          // Add red color and negative sign if price is negative
-          const livePrice = details.live_price;
-          const totalValue = details.total_value;
-          const livePriceClass = livePrice < 0 ? "text-danger" : "";
-          const totalValueClass = totalValue < 0 ? "text-danger" : "";
+                // Stock
+                const stockCell = document.createElement('td');
+                stockCell.textContent = stock;
+                row.appendChild(stockCell);
 
-          row.innerHTML = `
-            <td>${stock}</td>
-            <td>${details.quantity}</td>
-            <td class="${livePriceClass}">$${livePrice.toFixed(2)}</td>
-            <td class="${totalValueClass}">$${totalValue.toFixed(2)}</td>
-          `;
-          portfolioTable.appendChild(row);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching live prices:", error);
-      });
-  }
+                // Quantity
+                const quantityCell = document.createElement('td');
+                quantityCell.textContent = details.quantity;
+                row.appendChild(quantityCell);
 
-  // Update portfolio every 5 seconds
-  setInterval(updatePortfolio, 5000);
+                // Average Price
+                const avgPriceCell = document.createElement('td');
+                avgPriceCell.textContent = details.average_price.toFixed(2);
+                row.appendChild(avgPriceCell);
 
-  // Initial update
-  updatePortfolio();
+                // Current Price
+                const currentPriceCell = document.createElement('td');
+                currentPriceCell.textContent = details.live_price;
+                row.appendChild(currentPriceCell);
+
+                // Total Value
+                const totalValueCell = document.createElement('td');
+                totalValueCell.textContent = details.total_value.toFixed(2);
+                row.appendChild(totalValueCell);
+
+                // Profit/Loss
+                const profitLossCell = document.createElement('td');
+                profitLossCell.textContent = `${details.profit_loss.toFixed(2)} (${details.profit_loss_percentage.toFixed(2)}%)`;
+                profitLossCell.style.color = details.profit_loss >= 0 ? 'green' : 'red';
+                row.appendChild(profitLossCell);
+
+                tableBody.appendChild(row);
+            }
+        })
+        .catch(error => console.error('Error fetching live prices:', error));
+}
+
+// Fetch live prices every 5 seconds
+setInterval(fetchLivePrices, 5000);
+fetchLivePrices();  // Initial fetch
 
   // Show/hide price input based on order type
   document.getElementById("order_type").addEventListener("change", function () {
@@ -176,7 +186,7 @@
         alert(`Successfully bought ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
         // Update balance and portfolio
         document.getElementById("user_balance").innerText = data.balance.toFixed(2);
-        updatePortfolio();
+        fetchLivePrices();
       }
     }
   })
@@ -231,7 +241,7 @@
             alert(`Successfully sold ${data.quantity} shares of ${data.stock} at $${data.price.toFixed(2)}!`);
             // Update balance and portfolio
             document.getElementById("user_balance").innerText = data.balance.toFixed(2);
-            updatePortfolio();
+            fetchLivePrices();
           }
         }
       })

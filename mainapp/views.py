@@ -210,7 +210,7 @@ def place_order(request):
 
 
 def get_live_prices(request):
-    """Fetch live prices for the user's bought stocks."""
+    """Fetch live prices for the user's bought stocks and calculate profit/loss."""
     if not request.user.is_authenticated:
         return JsonResponse({"error": "User not authenticated"}, status=401)
 
@@ -224,10 +224,20 @@ def get_live_prices(request):
 
         if data:
             latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+            current_price = Decimal(latest_data["close"])
+            average_price = stock.average_price
+
+            # Calculate profit/loss
+            profit_loss = (current_price - average_price) * stock.quantity
+            profit_loss_percentage = ((current_price - average_price) / average_price) * 100
+
             live_prices[stock.stock] = {
                 "quantity": stock.quantity,
+                "average_price": float(average_price),
                 "live_price": latest_data["close"],
                 "total_value": float(stock.quantity * latest_data["close"]),
+                "profit_loss": float(profit_loss),  # Total profit/loss in currency
+                "profit_loss_percentage": float(profit_loss_percentage),  # Profit/loss percentage
             }
 
     return JsonResponse(live_prices)
@@ -269,268 +279,3 @@ def order_history(request):
     all_orders = executed_orders + pending_orders
 
     return render(request, "mainapp/order_history.html", {"orders": all_orders})
-
-
-# @csrf_exempt
-# @require_POST
-# def buy_stock(request):
-#     """Handle buying stocks for the logged-in user."""
-#     if not request.user.is_authenticated:
-#         return JsonResponse({"error": "User not authenticated"}, status=401)
-
-#     stock_symbol = request.POST.get("stock_symbol")
-#     quantity = int(request.POST.get("quantity"))
-
-#     # Fetch current market price from Redis
-#     redis_key = f"candlestick_data:{stock_symbol}"
-#     data = redis_conn.get(redis_key)
-
-#     if not data:
-#         return JsonResponse({"error": "No data found for the selected stock"}, status=404)
-
-#     latest_data = json.loads(data)[-1]  # Get the latest candlestick data
-#     market_price = Decimal(latest_data["close"])  # Use the closing price as the market price
-
-#     # Fetch user profile and check balance
-#     user_profile = UserProfile.objects.get(user=request.user)
-#     total_cost = market_price * quantity
-
-#     if user_profile.balance < total_cost:
-#         return JsonResponse({"error": "Insufficient balance"}, status=400)
-
-#     # Deduct balance and add stock to user's portfolio
-#     user_profile.balance -= total_cost
-#     user_profile.save()
-
-#     # Add stock to user's portfolio
-#     user_stock, created = UserStock.objects.get_or_create(
-#         user=request.user,
-#         stock=stock_symbol,
-#         defaults={"quantity": quantity, "average_price": market_price}
-#     )
-
-#     if not created:
-#         # Update existing stock entry
-#         total_quantity = user_stock.quantity + quantity
-#         user_stock.average_price = (
-#             (user_stock.average_price * user_stock.quantity) + (market_price * quantity)
-#         ) / total_quantity
-#         user_stock.quantity = total_quantity
-#         user_stock.save()
-
-#     return JsonResponse({
-#         "success": True,
-#         "balance": float(user_profile.balance),
-#         "stock": stock_symbol,
-#         "quantity": quantity,
-#         "price": float(market_price)  # Return the market price used for the purchase
-#     })
-    
-    
-    
-    
-    
-    
-    
-# # @csrf_exempt
-# # @require_POST
-# # def buy_stock(request):
-# #     """Handle buying stocks for the logged-in user."""
-# #     if not request.user.is_authenticated:
-# #         return JsonResponse({"error": "User not authenticated"}, status=401)
-
-# #     stock_symbol = request.POST.get("stock_symbol")
-# #     quantity = int(request.POST.get("quantity"))
-# #     price = Decimal(request.POST.get("price"))
-
-# #     # Fetch user profile and check balance
-# #     user_profile = UserProfile.objects.get(user=request.user)
-# #     total_cost = price * quantity
-
-# #     if user_profile.balance < total_cost:
-# #         return JsonResponse({"error": "Insufficient balance"}, status=400)
-
-# #     # Deduct balance and add stock to user's portfolio
-# #     user_profile.balance -= total_cost
-# #     user_profile.save()
-
-# #     # Add stock to user's portfolio (assuming a model called `UserStock` exists)
-# #     user_stock, created = UserStock.objects.get_or_create(
-# #         user=request.user,
-# #         stock=stock_symbol,
-# #         defaults={"quantity": quantity, "average_price": price}
-# #     )
-
-# #     if not created:
-# #         # Update existing stock entry
-# #         total_quantity = user_stock.quantity + quantity
-# #         user_stock.average_price = (
-# #             (user_stock.average_price * user_stock.quantity) + (price * quantity)
-# #         ) / total_quantity
-# #         user_stock.quantity = total_quantity
-# #         user_stock.save()
-
-# #     return JsonResponse({
-# #         "success": True,
-# #         "balance": float(user_profile.balance),
-# #         "stock": stock_symbol,
-# #         "quantity": quantity,
-# #         "price": float(price)
-# #     })
-    
-    
-    
-# @csrf_exempt
-# @require_POST
-# def sell_stock(request):
-#     """Handle selling stocks for the logged-in user."""
-#     if not request.user.is_authenticated:
-#         return JsonResponse({"error": "User not authenticated"}, status=401)
-
-#     stock_symbol = request.POST.get("stock_symbol")
-#     quantity = int(request.POST.get("quantity"))
-
-#     # Fetch current market price from Redis
-#     redis_key = f"candlestick_data:{stock_symbol}"
-#     data = redis_conn.get(redis_key)
-
-#     if not data:
-#         return JsonResponse({"error": "No data found for the selected stock"}, status=404)
-
-#     latest_data = json.loads(data)[-1]  # Get the latest candlestick data
-#     market_price = Decimal(latest_data["close"])  # Use the closing price as the market price
-
-#     # Fetch user profile and check if the user owns the stock
-#     user_profile = UserProfile.objects.get(user=request.user)
-#     user_stock = UserStock.objects.filter(user=request.user, stock=stock_symbol).first()
-
-#     if not user_stock:
-#         return JsonResponse({"error": "You do not own this stock"}, status=400)
-
-#     if user_stock.quantity < quantity:
-#         return JsonResponse({"error": "Insufficient quantity to sell"}, status=400)
-
-#     # Calculate total sale value
-#     total_sale_value = market_price * quantity
-
-#     # Update user balance
-#     user_profile.balance += total_sale_value
-#     user_profile.save()
-
-#     # Update or delete the user's stock holding
-#     if user_stock.quantity == quantity:
-#         user_stock.delete()  # Delete the stock if all shares are sold
-#     else:
-#         user_stock.quantity -= quantity
-#         user_stock.save()
-
-#     return JsonResponse({
-#         "success": True,
-#         "balance": float(user_profile.balance),
-#         "stock": stock_symbol,
-#         "quantity": quantity,
-#         "price": float(market_price)  # Return the market price used for the sale
-#     })    
-    
-    
-# # @csrf_exempt
-# # @require_POST
-# # def sell_stock(request):
-# #     """Handle selling stocks for the logged-in user."""
-# #     if not request.user.is_authenticated:
-# #         return JsonResponse({"error": "User not authenticated"}, status=401)
-
-# #     stock_symbol = request.POST.get("stock_symbol")
-# #     quantity = int(request.POST.get("quantity"))
-# #     price = Decimal(request.POST.get("price"))
-
-# #     # Fetch user profile and check if the user owns the stock
-# #     user_profile = UserProfile.objects.get(user=request.user)
-# #     user_stock = UserStock.objects.filter(user=request.user, stock=stock_symbol).first()
-
-# #     if not user_stock:
-# #         return JsonResponse({"error": "You do not own this stock"}, status=400)
-
-# #     if user_stock.quantity < quantity:
-# #         return JsonResponse({"error": "Insufficient quantity to sell"}, status=400)
-
-# #     # Calculate total sale value
-# #     total_sale_value = price * quantity
-
-# #     # Update user balance
-# #     user_profile.balance += total_sale_value
-# #     user_profile.save()
-
-# #     # Update or delete the user's stock holding
-# #     if user_stock.quantity == quantity:
-# #         user_stock.delete()  # Delete the stock if all shares are sold
-# #     else:
-# #         user_stock.quantity -= quantity
-# #         user_stock.save()
-
-# #     return JsonResponse({
-# #         "success": True,
-# #         "balance": float(user_profile.balance),
-# #         "stock": stock_symbol,
-# #         "quantity": quantity,
-# #         "price": float(price)
-# #     })    
-    
-    
-    
-    
-
-
-
-
-
-
-
-# def login_page(request):
-#     if request.method=="POST":
-        
-#         username=request.POST.get('username')
-#         password=request.POST.get('password')
-        
-#         if not User.objects.filter(username=username).exists():
-#             messages.error(request,'invalid username')
-#             return redirect('/login/')
-         
-#         user = authenticate(username=username,password=password) #we suse authenticate method to check the username and password because password is encrypted
-#         if user is None:
-#             messages.error(request,'invalid password')
-#             return redirect('/login/')  
-#         else:
-#             login(request,user) #login method is used to login the user and store the user in the session
-#             return redirect('/receipes/')   
-            
-#     return render(request,'login.html')  
-
-# def register(request):
-#     if request.method=="POST":
-#         first_name=request.POST.get('first_name')
-#         last_name=request.POST.get('last_name')
-#         username=request.POST.get('username')
-#         password=request.POST.get('password')
-        
-#         user =User.objects.filter(username=username)
-#         if user.exists():
-#             messages.info(request,'Username is already taken') 
-#             return redirect('/register/')
-#         user = User.objects.create(
-#             first_name=first_name,last_name=last_name,username=username)
-        
-#         #in django we use set_password method to store the password in encrypted form , it does not encrpyt the password by default because it is string     
-#         user.set_password(password)
-#         user.save()
-#         messages.info(request,'account created successfully')
-#         return redirect('/register/')       
-        
-    
-#     return render(request,'register.html')
-
-
-# def logout_page(request):
-#     logout(request)
-#     return render(request,'logout.html')
-    
