@@ -105,7 +105,6 @@ def stock_chart_data(request, stock_symbol):
 
 
 # Connect to Redis
-redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 def fetch_stock_data(selected_stock):
     """Fetch latest candlestick data from Redis."""

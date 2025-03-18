@@ -11,13 +11,14 @@ def buy_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
 
     # Deduct balance and add stock to user's portfolio
     user_profile.balance -= total_cost
-    user_profile.save()
+    user_profile.save() # Save the updated balance
 
     # Add stock to user's portfolio
+    #get_or_create is used to get the object if it exists or create a new object if it does not exist
     user_stock, created = UserStock.objects.get_or_create(
         user=user,
         stock=stock_symbol,
-        defaults={"quantity": quantity, "average_price": price, "order_type": order_type}
+        defaults={"quantity": quantity, "average_price": price, "order_type": order_type} # default values for the fields if the object is created
     )
 
     if not created:
