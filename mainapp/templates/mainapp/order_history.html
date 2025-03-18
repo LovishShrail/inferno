@@ -9,28 +9,30 @@
     
     <!-- Table to display all orders -->
     <table class="table">
-        <thead>
-            <tr>
-                <th>Type</th>
-                <th>Stock</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Timestamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr>
-                <td>{{ order.type }}</td>
-                <td>{{ order.stock }}</td>
-                <td>{{ order.quantity }}</td>
-                <td>${{ order.price|floatformat:2 }}</td>
-                <td>{{ order.status }}</td>
-                <td>{{ order.timestamp }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <thead>
+        <tr>
+            <th>Order Type</th>
+            <th>Action</th>  <!-- New column for Buy/Sell -->
+            <th>Stock</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Timestamp</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order.type }}</td>
+            <td>{{ order.action }}</td>  <!-- Display Buy/Sell -->
+            <td>{{ order.stock }}</td>
+            <td>{{ order.quantity }}</td>
+            <td>${{ order.price|floatformat:2 }}</td>
+            <td>{{ order.status }}</td>
+            <td>{{ order.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 </div>
 {% endblock %}
