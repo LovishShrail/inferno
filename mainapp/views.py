@@ -14,6 +14,7 @@ from django.db import models
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from .order_utils import buy_stock, sell_stock  
+from django.contrib.auth.models import User
 
 
 
@@ -279,3 +280,39 @@ def order_history(request):
     all_orders = executed_orders + pending_orders
 
     return render(request, "mainapp/order_history.html", {"orders": all_orders})
+
+
+def leaderboard(request):
+    """Fetch leaderboard data and render the leaderboard page."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+
+    # Fetch all users and calculate their total profit
+    users = User.objects.all()
+    leaderboard_data = []
+
+    for user in users:
+        user_stocks = UserStock.objects.filter(user=user)
+        total_profit = Decimal(0)
+
+        for stock in user_stocks:
+            redis_key = f"candlestick_data:{stock.stock}"
+            data = redis_conn.get(redis_key)
+
+            if data:
+                latest_data = json.loads(data)[-1]  # Get the latest candlestick data
+                current_price = Decimal(latest_data["close"])
+                average_price = stock.average_price
+                profit_loss = (current_price - average_price) * stock.quantity
+                total_profit += profit_loss
+
+        leaderboard_data.append({
+            "username": user.username,
+            "total_profit": float(total_profit),
+        })
+
+    # Sort users by total profit (descending order)
+    leaderboard_data.sort(key=lambda x: x["total_profit"], reverse=True)
+
+    # Render the leaderboard template with the data
+    return render(request, "mainapp/leaderboard.html", {"leaderboard_data": leaderboard_data})
