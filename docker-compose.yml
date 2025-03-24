@@ -1,6 +1,35 @@
 version: '3.8'
 
 services:
+
+
+  django:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: django
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             daphne stockproject.asgi:application"
+    volumes:
+      - .:/usr/src/app
+      - static_volume:/usr/src/app/staticfiles
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=0
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONPATH=/usr/src/app
+      - PYTHONUNBUFFERED=1
+      - DJANGO_SETTINGS_MODULE=stockproject.settings
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
   redis:
     image: redis:7.0-alpine
     ports:
@@ -12,50 +41,33 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
 
-  django:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: django
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8000 stockproject.asgi:application"
-    volumes:
-      - .:/usr/src/app
-      - static_volume:/usr/src/app/staticfiles
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=1  # Set to 0 in production
-      - DJANGO_SETTINGS_MODULE=stockproject.settings
-      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      redis:
-        condition: service_healthy
+  
 
   celery-worker:
     build: .
     container_name: celery-worker
     command: >
       sh -c "celery -A stockproject worker
-             --pool=prefork
-             --concurrency=8  # Optimal for development
-             --loglevel=info"
+             --pool=solo
+             
+             --loglevel=info
+             --hostname=worker1@%%h"
     volumes:
       - .:/usr/src/app
     environment:
       - DJANGO_SETTINGS_MODULE=stockproject.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_WORKER_MAX_TASKS_PER_CHILD=100
+      - CELERY_WORKER_PREFETCH_MULTIPLIER=4
     depends_on:
       redis:
         condition: service_healthy
       django:
         condition: service_started
+    restart: unless-stopped
 
   celery-beat:
     build: .
@@ -69,11 +81,13 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=stockproject.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BEAT_MAX_LOOP_INTERVAL=300
     depends_on:
       redis:
         condition: service_healthy
       django:
         condition: service_started
+    restart: unless-stopped
 
 volumes:
   redis_data:
