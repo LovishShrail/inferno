@@ -9,7 +9,7 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username}'s Profile"
 
-class StockDetail(models.Model):
+class StockDetail(models.Model): # this model is created bcoz we want to store the stocks available in the market
     stock = models.CharField(max_length=10)
     user = models.ManyToManyField(User)
 
@@ -21,7 +21,7 @@ class StockDetail(models.Model):
     
 
 
-class UserStock(models.Model):
+class UserStock(models.Model):# this model is created bcoz we want to store the stocks bought by the user
     ORDER_TYPES = [
         ('MARKET', 'Market'),
         ('LIMIT', 'Limit'),
@@ -39,7 +39,7 @@ class UserStock(models.Model):
 
 
 
-class LimitOrder(models.Model):
+class LimitOrder(models.Model): # this model is created bcoz we want to store the limit orders placed by the user 
     ORDER_TYPES = [
         ('BUY', 'Buy'),
         ('SELL', 'Sell'),
@@ -48,7 +48,7 @@ class LimitOrder(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     stock = models.CharField(max_length=10)
     quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2) # this price is the price at which the user wants to buy or sell the stock
     order_type = models.CharField(max_length=4, choices=ORDER_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)  # Add created_at field
 

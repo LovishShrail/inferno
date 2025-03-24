@@ -82,9 +82,9 @@
 <script>
   // Function to fetch live prices and update the portfolio
   function fetchLivePrices() {
-    fetch('/get_live_prices/')
-        .then(response => response.json())
-        .then(data => {
+    fetch('/get_live_prices/') 
+        .then(response => response.json()) // .then() is used to process the promise returned by fetch()
+        .then(data => { // data is the JSON response from the server
             const tableBody = document.getElementById('portfolio-table');
             tableBody.innerHTML = '';  // Clear existing rows
 
@@ -118,7 +118,7 @@
 
                 // Profit/Loss
                 const profitLossCell = document.createElement('td');
-                profitLossCell.textContent = `${details.profit_loss.toFixed(2)} (${details.profit_loss_percentage.toFixed(2)}%)`;
+                profitLossCell.textContent = `${details.profit_loss.toFixed(2)} (${details.profit_loss_percentage.toFixed(2)}%)`; // Display profit/loss and percentage
                 profitLossCell.style.color = details.profit_loss >= 0 ? 'green' : 'red';
                 row.appendChild(profitLossCell);
 
@@ -144,10 +144,10 @@ fetchLivePrices();  // Initial fetch
 
   // Buy button logic
   document.getElementById("buy_button").addEventListener("click", function () {
-    const stockSymbol = document.getElementById("stock_selector").value;
+    const stockSymbol = document.getElementById("stock_selector").value; //.value is used to get the value of the selected option
     const quantity = parseInt(document.getElementById("quantity").value);
     const orderType = document.getElementById("order_type").value;
-    const price = orderType === "limit" ? parseFloat(document.getElementById("price").value) : null;
+    const price = orderType === "limit" ? parseFloat(document.getElementById("price").value) : null; // explain this line -> parseFloat is used to convert the string to a floating point number, null is used to set the price to null if the order type is not limit
 
     if (!stockSymbol || !quantity) {
       alert("Please select a stock and enter a quantity.");
@@ -166,7 +166,7 @@ fetchLivePrices();  // Initial fetch
     "Content-Type": "application/x-www-form-urlencoded",
     "X-CSRFToken": "{{ csrf_token }}",
   },
-  body: new URLSearchParams({
+  body: new URLSearchParams({ // new URLSearchParams() is used to create a new URLSearchParams object , what is URLSearchParams  -> URLSearchParams is an interface defined in the URLSearchParams API that allows creation and manipulation of URL query parameters.
     stock_symbol: stockSymbol,
     quantity: quantity,
     order_type: orderType,

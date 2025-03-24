@@ -26,22 +26,22 @@ CSV_FILE_PATH = r"C:\infernoproject\stocktracker\stockproject\mainapp\multi_stoc
 df = pd.read_csv(CSV_FILE_PATH)
 
 # Dictionary to store current index for each stock
-stock_indices = {ticker: 0 for ticker in df["ticker"].unique()}
+stock_indices = {ticker: 0 for ticker in df["ticker"].unique()} # output will be {'AAPL': 0, 'GOOGL': 0, 'MSFT': 0, 'AMZN': 0, 'TSLA': 0} , here 0 is the index of the stock
 
 def get_stock_updates(selected_stocks):
     """Fetch stock data from CSV and simulate real-time updates."""
-    global stock_indices
+    global stock_indices 
     data = {}
 
     for ticker in selected_stocks:
         stock_data = df[df["ticker"] == ticker] 
-        index = stock_indices.get(ticker, 0)
+        index = stock_indices.get(ticker, 0)  # .get is used to get the value of the key from the dictionary, if the key does not exist then it will return the default value which is 0 , example stock_indices.get('AAPL',0) will return 0 as AAPL is not present in the dictionary
 
         # If we reach the end of the dataset, loop back to the beginning
         if index >= len(stock_data):
             index = 0
 
-        row = stock_data.iloc[index]
+        row = stock_data.iloc[index]# iloc is used to get the data from the index
 
         data[ticker] = {
             "time": row["date"],  # Ensure this is a string or timestamp
@@ -59,7 +59,7 @@ def get_stock_updates(selected_stocks):
 
 def stockPicker(request):
     """View to display available stocks for selection."""
-    stock_picker = df["ticker"].unique().tolist()
+    stock_picker = df["ticker"].unique().tolist() # unique is used to get the unique values from the column , tolist is used to convert the output to list
     return render(request, "mainapp/stockpicker.html", {"stock_picker": stock_picker})
 
 @sync_to_async
@@ -72,7 +72,7 @@ async def stockTracker(request):
         return HttpResponse("Login First")
 
     """View to fetch initial stock data and trigger Celery updates."""
-    selected_stocks = request.GET.getlist("stock_picker")
+    selected_stocks = request.GET.getlist("stock_picker") # getlist is used to get the multiple values from the query parameter
 
     if not selected_stocks:
         return JsonResponse({"error": "No stocks selected"}, status=400)
@@ -90,12 +90,12 @@ redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=Tru
 def stock_chart_data(request, stock_symbol):
     """Fetch stock data from Redis and return it in JSON format."""
     redis_key = f"candlestick_data:{stock_symbol}"
-    data = redis_conn.get(redis_key)
+    data = redis_conn.get(redis_key) # output will be the data stored in the redis key example - '[{"time": "2021-01-01", "open": 100.0, "high": 110.0, "low": 90.0, "close": 105.0}, ...]'
 
     if not data:
         return JsonResponse({"error": "No data found"}, status=404)
 
-    df = pd.DataFrame(json.loads(data))
+    df = pd.DataFrame(json.loads(data)) # Convert JSON string to DataFrame , output will be a dataframe with columns time,open,high,low,close
     df["time"] = pd.to_datetime(df["time"]).astype(int) // 10**9
 
     chart_data = df[["time", "open", "high", "low", "close"]].to_dict(orient="records")
@@ -109,7 +109,7 @@ def stock_chart_data(request, stock_symbol):
 def fetch_stock_data(selected_stock):
     """Fetch latest candlestick data from Redis."""
     redis_key = f"candlestick_data:{selected_stock}"
-    data = redis_conn.get(redis_key)
+    data = redis_conn.get(redis_key) 
 
     if not data:
         return JsonResponse({"error": "No data found for stock"}, status=404)
@@ -142,7 +142,7 @@ def place_order(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "User not authenticated"}, status=401)
 
-    stock_symbol = request.POST.get("stock_symbol")
+    stock_symbol = request.POST.get("stock_symbol") # get the stock symbol from the post request
     quantity = int(request.POST.get("quantity"))
     order_type = request.POST.get("order_type")  # 'market' or 'limit'
     price = request.POST.get("price")  # Required for limit orders
@@ -194,7 +194,7 @@ def place_order(request):
             return JsonResponse({"error": "Price is required for limit orders"}, status=400)
 
         limit_price = Decimal(price)
-        LimitOrder.objects.create(
+        LimitOrder.objects.create( # create a new limit order
             user=request.user,
             stock=stock_symbol,
             quantity=quantity,
@@ -215,7 +215,7 @@ def get_live_prices(request):
         return JsonResponse({"error": "User not authenticated"}, status=401)
 
     # Fetch user's bought stocks
-    user_stocks = UserStock.objects.filter(user=request.user)
+    user_stocks = UserStock.objects.filter(user=request.user) # wrong : output will be the list of stocks bought by the user , how ? UserStock is a model which has a field user which is a foreign key to the User model , so when we filter the UserStock model with the user=request.user , we get the list of stocks bought by the user
     live_prices = {}
 
     for stock in user_stocks:

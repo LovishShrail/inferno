@@ -43,7 +43,7 @@ def buy_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
 def sell_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
     """Handle selling stocks."""
     user_profile = UserProfile.objects.get(user=user)
-    user_stock = UserStock.objects.filter(user=user, stock=stock_symbol).first()
+    user_stock = UserStock.objects.filter(user=user, stock=stock_symbol).first() # .first is used to get the first object from the queryset
 
     if not user_stock:
         return {"error": "You do not own this stock"}

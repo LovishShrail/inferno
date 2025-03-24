@@ -45,25 +45,25 @@ def fetch_stock_data_from_csv(selected_stocks):
 
         # Store data in Redis
         redis_key = f"candlestick_data:{ticker}"
-        history = redis_conn.get(redis_key)
+        history = redis_conn.get(redis_key) 
         if history:
-            history = json.loads(history)
-            history.append(stock_entry)
+            history = json.loads(history) # Convert JSON string to Python list
+            history.append(stock_entry) # Append new stock entry
             if len(history) > 100:  # Keep only last 100 candles
                 history.pop(0)
         else:
-            history = [stock_entry]
+            history = [stock_entry] 
 
-        redis_conn.set(redis_key, json.dumps(history))
+        redis_conn.set(redis_key, json.dumps(history)) # Save updated history in Redis , convert Python list to JSON string
         data[ticker] = stock_entry
 
     return data
 
 @shared_task
 def update_stock(selected_stocks=None):
-    """Fetch stock data, store in Redis, and send WebSocket updates."""
+    """Fetch stock data, and send WebSocket updates."""
     if selected_stocks is None:
-        selected_stocks = list(StockDetail.objects.values_list("stock", flat=True))
+        selected_stocks = list(StockDetail.objects.values_list("stock", flat=True)) # output is a list of stock symbols from the StockDetail model example - ['AAPL', 'GOOGL', 'MSFT']
 
     if not selected_stocks:
         print("No stocks selected.")
@@ -88,7 +88,6 @@ def update_stock(selected_stocks=None):
 @shared_task
 def process_limit_orders():
     """Check and execute limit orders."""
-    redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
     for order in LimitOrder.objects.all():
         redis_key = f"candlestick_data:{order.stock}"
