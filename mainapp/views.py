@@ -20,7 +20,7 @@ from django.contrib.auth.models import User
 
 
 # Path to CSV file
-CSV_FILE_PATH = r"C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
+CSV_FILE_PATH = "mainapp\multi_stock_data.csv"
 
 # Load CSV into a DataFrame
 df = pd.read_csv(CSV_FILE_PATH)

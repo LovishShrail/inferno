@@ -13,7 +13,7 @@ from .order_utils import buy_stock, sell_stock
 redis_conn = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 # Path to CSV file
-CSV_FILE_PATH = r"C:\infernoproject\stocktracker\stockproject\mainapp\multi_stock_data.csv"
+CSV_FILE_PATH ="mainapp\multi_stock_data.csv"
 df = pd.read_csv(CSV_FILE_PATH)
 
 # Track index for each stock
