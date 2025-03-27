@@ -15,7 +15,7 @@ class StockConsumer(AsyncWebsocketConsumer):
         """Updates or creates a Celery Beat task for fetching stock data."""
         from django_celery_beat.models import PeriodicTask, IntervalSchedule
 
-        task = PeriodicTask.objects.filter(name="every-10-seconds").first()
+        task = PeriodicTask.objects.filter(name="every-1-seconds").first()
 
         if task:
             # Reset task args with the newly selected stocks
@@ -23,10 +23,10 @@ class StockConsumer(AsyncWebsocketConsumer):
             task.save()
         else:
             # Create a new periodic task if it doesn't exist
-            schedule, _ = IntervalSchedule.objects.get_or_create(every=10, period=IntervalSchedule.SECONDS)
+            schedule, _ = IntervalSchedule.objects.get_or_create(every=1, period=IntervalSchedule.SECONDS)
             task = PeriodicTask.objects.create(
                 interval=schedule,
-                name="every-10-seconds",
+                name="every-1-seconds",
                 task="mainapp.tasks.update_stock",
                 args=json.dumps([stockpicker])
             )
@@ -91,7 +91,7 @@ class StockConsumer(AsyncWebsocketConsumer):
                 stock.delete()
 
         # Update Celery Beat task
-        task = PeriodicTask.objects.filter(name="every-10-seconds").first()
+        task = PeriodicTask.objects.filter(name="every-1-seconds").first()
         if task:
             existing_stocks = set(json.loads(task.args)[0])  # Convert to set for removal
             updated_stocks = list(existing_stocks - set(stocks.values_list("stock", flat=True)))

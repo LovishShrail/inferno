@@ -16,9 +16,9 @@ app.config_from_object(settings, namespace='CELERY')
 
 
 app.conf.beat_schedule = {
-    'process-limit-orders-every-10-seconds': {
+    'process-limit-orders-every-1-seconds': {
         'task': 'mainapp.tasks.process_limit_orders',  # Task path
-        'schedule': 10.0,  # Run every 10 seconds
+        'schedule': 1.0,  # Run every 1 seconds
     },
 }
 

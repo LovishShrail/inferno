@@ -128,8 +128,8 @@
         .catch(error => console.error('Error fetching live prices:', error));
 }
 
-// Fetch live prices every 5 seconds
-setInterval(fetchLivePrices, 5000);
+// Fetch live prices every 1 seconds
+setInterval(fetchLivePrices, 1000);
 fetchLivePrices();  // Initial fetch
 
   // Show/hide price input based on order type

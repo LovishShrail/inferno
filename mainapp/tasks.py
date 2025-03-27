@@ -49,7 +49,7 @@ def fetch_stock_data_from_csv(selected_stocks):
         if history:
             history = json.loads(history) # Convert JSON string to Python list
             history.append(stock_entry) # Append new stock entry
-            if len(history) > 100:  # Keep only last 100 candles
+            if len(history) > 1000:  # Keep only last 1000 candles
                 history.pop(0)
         else:
             history = [stock_entry] 

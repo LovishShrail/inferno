@@ -73,9 +73,9 @@ def on_stock_select(event=None):
     update_chart(selected_stock)
 
 def periodic_update():
-    """Refresh chart every 10 seconds."""
+    """Refresh chart every 3 seconds."""
     on_stock_select()
-    root.after(10000, periodic_update)  # Schedule next update 
+    root.after(1000, periodic_update)  # Schedule next update 
 
 if __name__ == "__main__": # This is the main function which will be executed first 
     # Fetch available stocks from Redis

@@ -305,6 +305,7 @@ def leaderboard(request):
                 profit_loss = (current_price - average_price) * stock.quantity
                 total_profit += profit_loss
 
+        
         leaderboard_data.append({
             "username": user.username,
             "total_profit": float(total_profit),
