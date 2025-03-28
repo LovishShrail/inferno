@@ -10,7 +10,7 @@ from django.db.models import Sum  # Import Sum for aggregation
 from .models import UserProfile, StockDetail ,UserStock,LimitOrder,Transaction# Import your models
 from django.views.decorators.http import require_POST
 from decimal import Decimal
-from django.db import models 
+
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from .order_utils import buy_stock, sell_stock  
@@ -29,13 +29,14 @@ def login_page(request):
     if request.method=="POST":
         
         username=request.POST.get('username')
+        email=request.POST.get('email')
         password=request.POST.get('password')
         
         if not User.objects.filter(username=username).exists():
             messages.error(request,'invalid username')
             return redirect('/login/')
          
-        user = authenticate(username=username,password=password) #we suse authenticate method to check the username and password because password is encrypted
+        user = authenticate(username=username,email=email,password=password) #we suse authenticate method to check the username and password because password is encrypted
         if user is None:
             messages.error(request,'invalid password')
             return redirect('/login/')  
@@ -50,6 +51,7 @@ def register(request):
         first_name=request.POST.get('first_name')
         last_name=request.POST.get('last_name')
         username=request.POST.get('username')
+        email = request.POST.get('email')
         password=request.POST.get('password')
         
         user =User.objects.filter(username=username)
@@ -57,13 +59,13 @@ def register(request):
             messages.info(request,'Username is already taken') 
             return redirect('/register/')
         user = User.objects.create(
-            first_name=first_name,last_name=last_name,username=username)
+            first_name=first_name,last_name=last_name,username=username,email=email)
         
         #in django we use set_password method to store the password in encrypted form , it does not encrpyt the password by default because it is string     
         user.set_password(password)
         user.save()
         messages.info(request,'account created successfully')
-        return redirect('/register/')       
+        return redirect('/login/')       
         
     
     return render(request,'mainapp/register.html')
@@ -151,9 +153,9 @@ def stock_chart_data(request, stock_symbol):
         return JsonResponse({"error": "No data found"}, status=404)
 
     df = pd.DataFrame(json.loads(data)) # Convert JSON string to DataFrame , output will be a dataframe with columns time,open,high,low,close
-    df["time"] = pd.to_datetime(df["time"]).astype(int) // 10**9
+    df["time"] = pd.to_datetime(df["time"]).astype(int) // 10**9  # Convert time to Unix timestamp in seconds , unix timestamp is the number of seconds passed since 1st jan 1970
 
-    chart_data = df[["time", "open", "high", "low", "close"]].to_dict(orient="records")
+    chart_data = df[["time", "open", "high", "low", "close"]].to_dict(orient="records") # to_dict is used to convert the dataframe to dictionary , orient='records' is used to convert the dataframe to list of dictionaries
     return JsonResponse(chart_data, safe=False)
 
 
