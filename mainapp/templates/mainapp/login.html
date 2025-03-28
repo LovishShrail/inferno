@@ -1,5 +1,6 @@
-{% extends 'index.html' %}
-{% block start %}
+{% extends 'mainapp/index.html' %}
+{% block title %}Login{% endblock %}
+{% block body %}
 
 {{request.user}}
 {% comment %} {{request.user.first_name}} {% endcomment %}

@@ -23,7 +23,7 @@ from django.contrib.auth.decorators import login_required
 def land_page(request):
     
     
-    return render(request,'land_page.html')
+    return render(request,'mainapp/landing_page.html')
 
 def login_page(request):
     if request.method=="POST":
@@ -43,7 +43,7 @@ def login_page(request):
             login(request,user) #login method is used to login the user and store the user in the session
             return redirect('/stockPicker/')   
             
-    return render(request,'login.html')  
+    return render(request,'mainapp/login.html')  
 
 def register(request):
     if request.method=="POST":
@@ -66,12 +66,12 @@ def register(request):
         return redirect('/register/')       
         
     
-    return render(request,'register.html')
+    return render(request,'mainapp/register.html')
 
 
 def logout_page(request):
     logout(request)
-    return render(request,'logout.html')
+    return render(request,'mainapp/logout.html')
   
 
 # Path to CSV file
