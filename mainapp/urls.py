@@ -14,6 +14,7 @@ urlpatterns = [
     path('place_order/', views.place_order, name='place_order'),
     path('order_history/', views.order_history, name='order_history'), 
     path('leaderboard/', views.leaderboard, name='leaderboard'),
+    path('order_history_ajax/', views.order_history_ajax, name='order_history_ajax'),
     
    
     

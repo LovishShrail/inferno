@@ -7,32 +7,71 @@
 <div class="container">
     <h1>Order History</h1>
     
-    <!-- Table to display all orders -->
-    <table class="table">
-    <thead>
-        <tr>
-            <th>Order Type</th>
-            <th>Action</th>  <!-- New column for Buy/Sell -->
-            <th>Stock</th>
-            <th>Quantity</th>
-            <th>Price</th>
-            <th>Status</th>
-            <th>Timestamp</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for order in orders %}
-        <tr>
-            <td>{{ order.type }}</td>
-            <td>{{ order.action }}</td>  <!-- Display Buy/Sell -->
-            <td>{{ order.stock }}</td>
-            <td>{{ order.quantity }}</td>
-            <td>${{ order.price|floatformat:2 }}</td>
-            <td>{{ order.status }}</td>
-            <td>{{ order.timestamp }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <table class="table" id="orderTable">
+        <thead>
+            <tr>
+                <th>Order Type</th>
+                <th>Action</th>
+                <th>Stock</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.type }}</td>
+                <td>{{ order.action }}</td>
+                <td>{{ order.stock }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>${{ order.price|floatformat:2 }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.timestamp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<script>
+// Function to fetch and update orders
+function updateOrders() {
+    fetch('/order_history_ajax/', {  // Ensure this matches your Django URL
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(data => {
+        const tbody = document.querySelector('#orderTable tbody');
+        tbody.innerHTML = '';  // Clear current rows
+        
+        data.orders.forEach(order => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${order.type}</td>
+                <td>${order.action}</td>
+                <td>${order.stock}</td>
+                <td>${order.quantity}</td>
+                <td>$${parseFloat(order.price).toFixed(2)}</td>
+                <td>${order.status}</td>
+                <td>${order.timestamp}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    })
+    .catch(error => console.error('Error updating orders:', error));
+}
+
+// Start polling when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    updateOrders(); // Initial load
+    setInterval(updateOrders, 1000); // Update every 3 seconds
+});
+</script>
 {% endblock %}
