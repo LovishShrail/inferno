@@ -7,7 +7,7 @@ import redis
 import json
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum  # Import Sum for aggregation
-from .models import UserProfile, StockDetail ,UserStock,LimitOrder# Import your models
+from .models import UserProfile, StockDetail ,UserStock,LimitOrder,Transaction# Import your models
 from django.views.decorators.http import require_POST
 from decimal import Decimal
 from django.db import models 
@@ -244,33 +244,33 @@ def get_live_prices(request):
 
 
 
-from django.shortcuts import render
-from django.http import JsonResponse
-from .models import UserStock, LimitOrder, UserProfile
-from django.contrib.auth.decorators import login_required
-
 @login_required
 def order_history(request):
     """Main order history view (renders template)"""
+    # Get all transactions (individual trades)
+    transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
+    
+    # Get pending limit orders
+    pending_orders = LimitOrder.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Combine and format all orders
     all_orders = []
     
-    # Executed orders (from UserStock)
-    for stock in UserStock.objects.filter(user=request.user):
+    for tx in transactions:
         all_orders.append({
-            "type": "Limit Order" if stock.order_type == "LIMIT" else "Market Order",
-            "action": "Buy",  # UserStock entries are always buys
-            "stock": stock.stock,
-            "quantity": stock.quantity,
-            "price": float(stock.average_price),
+            "type": tx.get_order_type_display(),
+            "action": tx.get_action_display(),
+            "stock": tx.stock,
+            "quantity": tx.quantity,  # Original quantity from this specific trade
+            "price": float(tx.price),
             "status": "Executed",
-            "timestamp": stock.created_at,
+            "timestamp": tx.timestamp,
         })
 
-    # Pending orders (from LimitOrder)
-    for order in LimitOrder.objects.filter(user=request.user):
+    for order in pending_orders:
         all_orders.append({
             "type": "Limit Order",
-            "action": order.order_type,  # "Buy" or "Sell"
+            "action": order.get_order_type_display(),
             "stock": order.stock,
             "quantity": order.quantity,
             "price": float(order.price),
@@ -278,31 +278,31 @@ def order_history(request):
             "timestamp": order.created_at,
         })
 
-    # Sort by timestamp (newest first)
-    all_orders.sort(key=lambda x: x['timestamp'], reverse=True)
-
     return render(request, "mainapp/order_history.html", {"orders": all_orders})
 
 @login_required
 def order_history_ajax(request):
-    """AJAX endpoint for dynamic updates (called by JavaScript)"""
+    """AJAX endpoint for dynamic updates"""
+    # Same logic as order_history but returns JSON
+    transactions = Transaction.objects.filter(user=request.user).order_by('-timestamp')
+    pending_orders = LimitOrder.objects.filter(user=request.user).order_by('-created_at')
+    
     all_orders = []
     
-    # Same logic as above, but returns JSON
-    for stock in UserStock.objects.filter(user=request.user):
+    for tx in transactions:
         all_orders.append({
-            "type": "Limit Order" if stock.order_type == "LIMIT" else "Market Order",
-            "action": "Buy",
-            "stock": stock.stock,
-            "quantity": stock.quantity,
-            "price": float(stock.average_price),
+            "type": tx.order_type,
+            "action": tx.action,
+            "stock": tx.stock,
+            "quantity": tx.quantity,
+            "price": float(tx.price),
             "status": "Executed",
-            "timestamp": stock.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": tx.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
         })
 
-    for order in LimitOrder.objects.filter(user=request.user):
+    for order in pending_orders:
         all_orders.append({
-            "type": "Limit Order",
+            "type": "LIMIT",
             "action": order.order_type,
             "stock": order.stock,
             "quantity": order.quantity,
@@ -311,8 +311,8 @@ def order_history_ajax(request):
             "timestamp": order.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         })
 
-    all_orders.sort(key=lambda x: x['timestamp'], reverse=True)
     return JsonResponse({"orders": all_orders})
+
 def leaderboard(request):
     """Leaderboard showing lifetime profits + current holdings"""
     if not request.user.is_authenticated:

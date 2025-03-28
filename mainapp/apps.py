@@ -4,7 +4,7 @@ from django.db.models.signals import post_migrate
 
 def reset_orders_and_balance():
     """Clear the UserStock and LimitOrder tables and reset UserProfile balance."""
-    from .models import UserStock, LimitOrder, UserProfile
+    from .models import UserStock, LimitOrder, UserProfile ,Transaction
 
     try:
         # Delete all UserStock entries
@@ -18,6 +18,9 @@ def reset_orders_and_balance():
         # Reset UserProfile balance
         UserProfile.objects.all().update(balance=10000.00)  # Set default balance
         print("UserProfile balance reset on startup!")
+        
+        Transaction.objects.all().delete()
+        print("order_history table cleared on startup!")
     except Exception as e:
         print(f"Error resetting orders and balance: {e}")
 
