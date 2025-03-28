@@ -2,7 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.stockPicker, name='stockpicker'),  
+    path('', views.land_page, name='land_page'),  
+    path('stockPicker/', views.stockPicker, name='stockpicker'),  
+    path('register/',views.register,name="register"),
+    path('login/',views.login_page,name="login_page"),
+    path('logout/',views.logout_page,name="logout_page"),
+
     path('stocktracker/', views.stockTracker, name='stocktracker'),  
     path('get_stock_updates/', views.get_stock_updates, name='get_stock_updates'),
     path("chart/", views.chart_view, name="chart"),
