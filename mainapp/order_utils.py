@@ -41,35 +41,40 @@ def buy_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
 
 
 def sell_stock(user, stock_symbol, quantity, price, order_type='MARKET'):
-    """Handle selling stocks."""
-    user_profile = UserProfile.objects.get(user=user)
-    user_stock = UserStock.objects.filter(user=user, stock=stock_symbol).first() # .first is used to get the first object from the queryset
+    """Handle selling stocks with accurate profit tracking"""
+    try:
+        user_profile = UserProfile.objects.get(user=user)
+        user_stock = UserStock.objects.get(user=user, stock=stock_symbol)
+        
+        if user_stock.quantity < quantity:
+            return {"error": "Insufficient quantity to sell"}
+        
+        # Calculate exact profit for this sale
+        sale_profit = (Decimal(str(price)) - user_stock.average_price) * Decimal(str(quantity))
+        
+        # Update cumulative profit BEFORE modifying balance
+        user_profile.cumulative_profit += sale_profit
+        user_profile.balance += Decimal(str(price)) * Decimal(str(quantity))
+        user_profile.save()
 
-    if not user_stock:
+        # Update stock holdings
+        if user_stock.quantity == quantity:
+            user_stock.delete()
+        else:
+            user_stock.quantity -= quantity
+            user_stock.save()
+
+        return {
+            "success": True,
+            "balance": float(user_profile.balance),
+            "cumulative_profit": float(user_profile.cumulative_profit),
+            "stock": stock_symbol,
+            "quantity": quantity,
+            "price": float(price),
+            "sale_profit": float(sale_profit)
+        }
+        
+    except UserStock.DoesNotExist:
         return {"error": "You do not own this stock"}
-
-    if user_stock.quantity < quantity:
-        return {"error": "Insufficient quantity to sell"}
-
-    # Calculate total sale value
-    total_sale_value = price * quantity
-
-    # Update user balance
-    user_profile.balance += total_sale_value
-    user_profile.save()
-
-    # Update or delete the user's stock holding
-    if user_stock.quantity == quantity:
-        user_stock.delete()  # Delete the stock if all shares are sold
-    else:
-        user_stock.quantity -= quantity
-        user_stock.order_type = order_type  # Update order type
-        user_stock.save()
-
-    return {
-        "success": True,
-        "balance": float(user_profile.balance),
-        "stock": stock_symbol,
-        "quantity": quantity,
-        "price": float(price),
-    }
+    except Exception as e:
+        return {"error": str(e)}

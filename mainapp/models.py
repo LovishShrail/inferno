@@ -5,6 +5,7 @@ from django.utils import timezone
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=10000.00)  # Default balance
+    cumulative_profit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # New field
 
     def __str__(self):
         return f"{self.user.username}'s Profile"
